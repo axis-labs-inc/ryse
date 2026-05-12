@@ -17,21 +17,6 @@
         "description": "Please press the PAIR button on your RYSE device, then click Submit to start pairing.",
         "title": "Pair your RYSE device"
       },
-      "pair": {
-        "description": "Pairing failed. Please press the PAIR button and try again.",
-        "title": "Pairing RYSE Device"
-      },
-      "pairing_search": {
-        "description": "No RYSE devices in pairing mode found. Please press the PAIR button and try again.",
-        "title": "Search for RYSE Devices"
-      },
-      "scan": {
-        "data": {
-          "device_address": "RYSE Devices:"
-        },
-        "submit": "PAIR",
-        "title": "Pairing RYSE device"
-      },
       "user": {
         "data": {
           "address": "Device Address",
