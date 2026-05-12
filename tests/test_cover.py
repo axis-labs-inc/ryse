@@ -131,6 +131,7 @@ async def test_async_update_timeout_error(
 
     mock_device.send_get_position.assert_awaited_once()
     assert "BLE communication error while reading device data" in caplog.text
+    assert entity.available is False
 
 
 async def test_async_update_generic_exception(
@@ -148,6 +149,7 @@ async def test_async_update_generic_exception(
 
     mock_device.send_get_position.assert_awaited_once()
     assert "Unexpected error while reading device data" in caplog.text
+    assert entity.available is False
 
 
 async def test_current_cover_position_valid(mock_device, mock_config_entry) -> None:
