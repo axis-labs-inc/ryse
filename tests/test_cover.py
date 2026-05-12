@@ -116,7 +116,9 @@ async def test_async_update_connected_triggers_available_and_get_position(
     mock_device.send_get_position.assert_awaited_once()
 
 
-async def test_async_update_timeout_error(mock_device, mock_config_entry) -> None:
+async def test_async_update_timeout_error(
+    mock_device, caplog: pytest.LogCaptureFixture, mock_config_entry
+) -> None:
     """Covers: `except TimeoutError` block."""
     entity = RyseCoverEntity(mock_device, mock_config_entry)
 
@@ -127,11 +129,13 @@ async def test_async_update_timeout_error(mock_device, mock_config_entry) -> Non
 
     await entity.async_update()
 
-    # No crash = test success
-    assert True
+    mock_device.send_get_position.assert_awaited_once()
+    assert "BLE communication error while reading device data" in caplog.text
 
 
-async def test_async_update_generic_exception(mock_device, mock_config_entry) -> None:
+async def test_async_update_generic_exception(
+    mock_device, caplog: pytest.LogCaptureFixture, mock_config_entry
+) -> None:
     """Covers: `except Exception` block."""
     entity = RyseCoverEntity(mock_device, mock_config_entry)
 
@@ -142,8 +146,8 @@ async def test_async_update_generic_exception(mock_device, mock_config_entry) ->
 
     await entity.async_update()
 
-    # No crash = test success
-    assert True
+    mock_device.send_get_position.assert_awaited_once()
+    assert "Unexpected error while reading device data" in caplog.text
 
 
 async def test_current_cover_position_valid(mock_device, mock_config_entry) -> None:
