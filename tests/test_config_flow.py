@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 import time
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -68,7 +69,7 @@ USER_INPUT = {CONF_ADDRESS: DEVICE_ADDRESS}
 
 
 @pytest.fixture
-def mock_pairing():
+def mock_pairing() -> Generator[tuple[MagicMock, MagicMock], None, None]:
     """Mock pair_with_ble_device + is_pairing_ryse_device."""
     with (
         patch(
@@ -86,7 +87,7 @@ def mock_pairing():
 
 
 @pytest.fixture
-def discovery():
+def discovery() -> Generator[MagicMock, None, None]:
     """Mock async_discovered_service_info."""
     with patch(
         "homeassistant.components.ryse.config_flow.async_discovered_service_info",
@@ -130,9 +131,9 @@ async def test_async_step_user_success(hass: HomeAssistant) -> None:
 @pytest.mark.usefixtures("discovery")
 async def test_async_step_user_errors(
     hass: HomeAssistant,
-    mock_pairing,
-    raise_error,
-    expected_error,
+    mock_pairing: tuple[MagicMock, MagicMock],
+    raise_error: type[Exception] | None,
+    expected_error: str,
 ) -> None:
     """Test errors during user pairing."""
 
@@ -184,7 +185,9 @@ async def test_async_step_user_device_added_between_steps(
 
 
 @pytest.mark.usefixtures("mock_pairing")
-async def test_async_step_user_no_devices_found(hass: HomeAssistant, discovery) -> None:
+async def test_async_step_user_no_devices_found(
+    hass: HomeAssistant, discovery: MagicMock
+) -> None:
     """Test that we abort when no devices are discovered."""
 
     discovery.return_value = []
@@ -234,9 +237,9 @@ async def test_async_step_bluetooth(hass: HomeAssistant) -> None:
 )
 async def test_async_step_bluetooth_errors(
     hass: HomeAssistant,
-    mock_pairing,
-    raise_error,
-    error_text,
+    mock_pairing: tuple[MagicMock, MagicMock],
+    raise_error: type[Exception] | None,
+    error_text: str,
 ) -> None:
     """Test Bluetooth discovery confirm error handling."""
 
