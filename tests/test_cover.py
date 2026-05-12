@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from homeassistant.components.cover import ATTR_POSITION, CoverEntityFeature
+from homeassistant.components.ryse.const import DOMAIN
 from homeassistant.components.ryse.cover import RyseCoverEntity
 
 from tests.common import MockConfigEntry
@@ -13,11 +14,9 @@ from tests.common import MockConfigEntry
 @pytest.fixture
 def mock_config_entry():
     """Return a minimal mock ConfigEntry."""
-    entry = MockConfigEntry(
+    return MockConfigEntry(
         domain="ryse", title="Test Device", data={}, unique_id="AA:BB:CC:DD:EE:FF"
     )
-    entry.add_to_hass = lambda hass: None
-    return entry
 
 
 @pytest.fixture
@@ -37,7 +36,7 @@ async def test_cover_properties(mock_device, mock_config_entry) -> None:
 
     info = entity.device_info
     assert info["manufacturer"] == "RYSE"
-    assert "AA:BB" in info["identifiers"].pop()[1]
+    assert (DOMAIN, "AA:BB:CC:DD:EE:FF") in info["identifiers"]
     assert entity._attr_supported_features & CoverEntityFeature.OPEN
 
 
