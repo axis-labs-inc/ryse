@@ -47,7 +47,7 @@ async def test_update_position_valid(
 ) -> None:
     """Test updating position calls HA state write."""
     entity = RyseCoverEntity(mock_device, mock_config_entry)
-    entity.async_write_ha_state = AsyncMock()
+    entity.async_write_ha_state = MagicMock()
 
     await entity._update_position(50)
     mock_device.is_valid_position.assert_called_with(50)

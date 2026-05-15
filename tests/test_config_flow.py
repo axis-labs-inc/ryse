@@ -38,12 +38,7 @@ ADVERTISEMENT_DATA = AdvertisementData(
 )
 
 
-BLE_DEVICE = BLEDevice(
-    address=DEVICE_ADDRESS,
-    name=DEVICE_NAME,
-    details={},
-    rssi=RSSI_VALUE,
-)
+BLE_DEVICE = BLEDevice(DEVICE_ADDRESS, DEVICE_NAME, {})
 
 DISCOVERY_INFO = BluetoothServiceInfoBleak(
     name=DEVICE_NAME,
@@ -69,7 +64,7 @@ USER_INPUT = {CONF_ADDRESS: DEVICE_ADDRESS}
 
 
 @pytest.fixture
-def mock_pairing() -> Generator[tuple[MagicMock, MagicMock], None, None]:
+def mock_pairing() -> Generator[tuple[MagicMock, MagicMock]]:
     """Mock pair_with_ble_device + is_pairing_ryse_device."""
     with (
         patch(
@@ -87,7 +82,7 @@ def mock_pairing() -> Generator[tuple[MagicMock, MagicMock], None, None]:
 
 
 @pytest.fixture
-def discovery() -> Generator[MagicMock, None, None]:
+def discovery() -> Generator[MagicMock]:
     """Mock async_discovered_service_info."""
     with patch(
         "homeassistant.components.ryse.config_flow.async_discovered_service_info",
