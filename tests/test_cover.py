@@ -98,12 +98,6 @@ async def test_current_cover_position_invalid(
     assert pos is None
     assert "Invalid position" in caplog.text
 
-
-# ============================================================================
-#                   NEW TESTS ADDED TO FIX CODECOV FAILURES
-# ============================================================================
-
-
 async def test_async_update_connected_triggers_available_and_get_position(
     mock_device: MagicMock, mock_config_entry: MockConfigEntry
 ) -> None:
