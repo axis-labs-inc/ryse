@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
+import logging
 from homeassistant.components.cover import ATTR_POSITION, CoverEntityFeature
 from homeassistant.components.ryse.const import DOMAIN
 from homeassistant.components.ryse.cover import RyseCoverEntity
@@ -232,6 +232,7 @@ async def test_async_update_pairing_failure_log_debug(
     entity._attr_available = True
     mock_device.client = None
     mock_device.pair = AsyncMock(return_value=False)
+    caplog.set_level(logging.DEBUG, logger="homeassistant.components.ryse.cover")
 
     await entity.async_update()
     assert entity.available is False
