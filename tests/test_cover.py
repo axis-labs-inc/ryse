@@ -249,6 +249,7 @@ async def test_async_update_pairing_failure_no_log_debug(
     entity._attr_available = False
     mock_device.client = None
     mock_device.pair = AsyncMock(return_value=False)
+    caplog.set_level(logging.DEBUG, logger="homeassistant.components.ryse.cover")
 
     await entity.async_update()
     assert entity.available is False
