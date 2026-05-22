@@ -121,20 +121,20 @@ class RyseCoverEntity(CoverEntity):
 
     async def async_update(self) -> None:
         """Fetch the current state and position from the device."""
-        if not self._device.client or not self._device.client.is_connected:
-            paired = await self._device.pair()
-            if not paired:
-                if self._attr_available:
-                    _LOGGER.debug("Failed to pair with device, skipping update")
-                self._attr_available = False
-                return
-            self._attr_available = True
-        else:
+        try:
+            if not self._device.client or not self._device.client.is_connected:
+                paired = await self._device.pair()
+                if not paired:
+                    if self._attr_available:
+                        _LOGGER.debug("Failed to pair with device, skipping update")
+                    self._attr_available = False
+                    return
+
             self._attr_available = True
 
-        try:
             if self._current_position is None:
                 await self._device.send_get_position()
+
         except (TimeoutError, OSError) as err:
             _LOGGER.error("BLE communication error while reading device data: %s", err)
             self._attr_available = False
