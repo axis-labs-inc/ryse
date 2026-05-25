@@ -149,7 +149,7 @@ class RyseCoverEntity(CoverEntity):
                 await self._device.send_get_position()
 
         except (TimeoutError, OSError) as err:
-            _LOGGER.error("BLE communication error while reading device data: %s", err)
+            _LOGGER.warning("BLE communication error while reading device data: %s", err)
             self._attr_available = False
         except Exception:
             _LOGGER.exception("Unexpected error while reading device data")
