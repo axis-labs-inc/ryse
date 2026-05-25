@@ -1,9 +1,9 @@
 """Test RYSE Cover entity behavior."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import logging
 from homeassistant.components.cover import ATTR_POSITION, CoverEntityFeature
 from homeassistant.components.ryse.const import DOMAIN
 from homeassistant.components.ryse.cover import RyseCoverEntity
