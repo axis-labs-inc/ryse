@@ -1,7 +1,7 @@
 """Support for RYSE Smart Shades via BLE."""
 
-import logging
 import contextlib
+import logging
 from typing import Any
 
 from ryseble.device import RyseBLEDevice
@@ -89,8 +89,9 @@ class RyseCoverEntity(CoverEntity):
     async def _update_position(self, position: int) -> None:
         """Update cover position when receiving notification."""
         if self._device.is_valid_position(position):
-            self._current_position = self._device.get_real_position(position)
-            self._attr_is_closed = self._device.is_closed(position)
+            real_position = self._device.get_real_position(position)
+            self._current_position = real_position
+            self._attr_is_closed = real_position == 0
             _LOGGER.debug("Updated cover position: %02X", position)
 
         self._write_state()
@@ -100,8 +101,7 @@ class RyseCoverEntity(CoverEntity):
     # ------------------------------------------------------
 
     def _write_state(self) -> None:
-        """Write HA state if hass is available.
-        """
+        """Write HA state if hass is available."""
         with contextlib.suppress(RuntimeError):
             self.async_write_ha_state()
 
@@ -149,7 +149,9 @@ class RyseCoverEntity(CoverEntity):
                 await self._device.send_get_position()
 
         except (TimeoutError, OSError) as err:
-            _LOGGER.warning("BLE communication error while reading device data: %s", err)
+            _LOGGER.warning(
+                "BLE communication error while reading device data: %s", err
+            )
             self._attr_available = False
         except Exception:
             _LOGGER.exception("Unexpected error while reading device data")
