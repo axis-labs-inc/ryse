@@ -1,6 +1,7 @@
 """Support for RYSE Smart Shades via BLE."""
 
 import logging
+import contextlib
 from typing import Any
 
 from ryseble.device import RyseBLEDevice
@@ -90,25 +91,31 @@ class RyseCoverEntity(CoverEntity):
             self._attr_is_closed = self._device.is_closed(position)
             _LOGGER.debug("Updated cover position: %02X", position)
 
-        self.async_write_ha_state()
+        self._write_state()
 
     # ------------------------------------------------------
     #   Commands
     # ------------------------------------------------------
+
+    def _write_state(self) -> None:
+        """Write HA state if hass is available.
+        """
+        with contextlib.suppress(RuntimeError):
+            self.async_write_ha_state()
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the shade."""
         await self._device.send_open()
         _LOGGER.debug("Change position to open")
         self._attr_is_closed = False
-        self.async_write_ha_state()
+        self._write_state()
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the shade."""
         await self._device.send_close()
         _LOGGER.debug("Change position to close")
         self._attr_is_closed = True
-        self.async_write_ha_state()
+        self._write_state()
 
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the shade to a specific position."""
@@ -117,7 +124,7 @@ class RyseCoverEntity(CoverEntity):
         _LOGGER.debug("Change position to a specific position")
         self._attr_is_closed = self._device.is_closed(position)
         self._current_position = position
-        self.async_write_ha_state()
+        self._write_state()
 
     # ------------------------------------------------------
     #   State refresh
