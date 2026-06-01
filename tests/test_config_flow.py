@@ -64,7 +64,7 @@ USER_INPUT = {CONF_ADDRESS: DEVICE_ADDRESS}
 
 
 @pytest.fixture
-def mock_pairing() -> Generator[tuple[MagicMock, MagicMock]]:
+def mock_pairing() -> Generator[tuple[MagicMock, MagicMock], None, None]:
     """Mock pair_with_ble_device + is_pairing_ryse_device."""
     with (
         patch(
@@ -82,7 +82,7 @@ def mock_pairing() -> Generator[tuple[MagicMock, MagicMock]]:
 
 
 @pytest.fixture
-def discovery() -> Generator[MagicMock]:
+def discovery() -> Generator[MagicMock, None, None]:
     """Mock async_discovered_service_info."""
     with patch(
         "homeassistant.components.ryse.config_flow.async_discovered_service_info",
