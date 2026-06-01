@@ -1,5 +1,6 @@
 """Config flow for RYSE BLE integration."""
 
+import asyncio
 import logging
 from typing import Any
 
@@ -14,7 +15,7 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import DOMAIN
+from .const import DOMAIN, SUUID, UPMFG
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,17 +107,41 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         self._discovered_devices.clear()
 
+        candidates: list[BluetoothServiceInfoBleak] = []
         for info in async_discovered_service_info(self.hass, connectable=True):
             if info.address in current_ids:
                 continue
             if not info.name:  # Skip no-name devices
                 continue
 
-            if not await is_pairing_ryse_device(info.address):
+            # Pre-filter candidates by name or known service UUID
+            if (
+                UPMFG not in info.name.upper()
+                and SUUID not in info.service_uuids
+            ):
                 continue
+            
+            candidates.append(info)
 
-            # Add device to selection list
-            self._discovered_devices[info.address] = info.name
+        async def _check_pairing(
+            device_info: BluetoothServiceInfoBleak,
+        ) -> BluetoothServiceInfoBleak | None:
+            try:
+                async with asyncio.timeout(5.0):
+                    if await is_pairing_ryse_device(device_info.address):
+                        return device_info
+            except Exception:
+                return None
+            return None
+
+        if candidates:
+            results = await asyncio.gather(
+                *(_check_pairing(info) for info in candidates)
+            )
+            for info in results:
+                if info is not None:
+                    # Add device to selection list
+                    self._discovered_devices[info.address] = info.name
 
         if not self._discovered_devices:
             return self.async_abort(reason="no_devices_found")
