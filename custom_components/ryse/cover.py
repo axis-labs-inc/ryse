@@ -50,6 +50,7 @@ class RyseCoverEntity(CoverEntity):
         self._attr_unique_id = f"{device.address}_cover"
         self._current_position: int | None = None
         self._attr_is_closed: bool | None = None
+        self._attr_available: bool = False
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device.address)},
             name=config_entry.title,
