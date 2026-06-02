@@ -350,6 +350,120 @@ async def test_async_step_user_skips_non_pairing_device(
 
 
 @pytest.mark.usefixtures("mock_pairing")
+async def test_async_step_user_filter_matching_manufacturer_id(
+    hass: HomeAssistant, discovery: MagicMock
+) -> None:
+    """Test that we discover devices matching the RYSE manufacturer ID."""
+    ble_device = BLEDevice(DEVICE_ADDRESS, "Generic Device", {})
+    matching_discovery = BluetoothServiceInfoBleak(
+        name="Generic Device",
+        address=DEVICE_ADDRESS,
+        rssi=-40,
+        manufacturer_data={1033: b"\x01\x02"},
+        service_data={},
+        service_uuids=[],
+        source="local",
+        device=ble_device,
+        advertisement=AdvertisementData(
+            local_name="Generic Device",
+            manufacturer_data={1033: b"\x01\x02"},
+            service_data={},
+            service_uuids=[],
+            rssi=-40,
+            tx_power=None,
+            platform_data=(),
+        ),
+        time=time.time(),
+        connectable=True,
+        tx_power=-127,
+    )
+    discovery.return_value = [matching_discovery]
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+
+
+@pytest.mark.usefixtures("mock_pairing")
+async def test_async_step_user_filter_matching_service_uuid(
+    hass: HomeAssistant, discovery: MagicMock
+) -> None:
+    """Test that we discover devices matching the custom RYSE service UUID."""
+    ble_device = BLEDevice(DEVICE_ADDRESS, "Generic Device", {})
+    matching_discovery = BluetoothServiceInfoBleak(
+        name="Generic Device",
+        address=DEVICE_ADDRESS,
+        rssi=-40,
+        manufacturer_data={},
+        service_data={},
+        service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+        source="local",
+        device=ble_device,
+        advertisement=AdvertisementData(
+            local_name="Generic Device",
+            manufacturer_data={},
+            service_data={},
+            service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+            rssi=-40,
+            tx_power=None,
+            platform_data=(),
+        ),
+        time=time.time(),
+        connectable=True,
+        tx_power=-127,
+    )
+    discovery.return_value = [matching_discovery]
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+
+
+@pytest.mark.usefixtures("mock_pairing")
+async def test_async_step_user_skips_unmatched_device(
+    hass: HomeAssistant, discovery: MagicMock
+) -> None:
+    """Test that we skip devices that do not match any RYSE BLE identifiers."""
+    ble_device = BLEDevice(DEVICE_ADDRESS, "Generic Device", {})
+    unmatched_discovery = BluetoothServiceInfoBleak(
+        name="Generic Device",
+        address=DEVICE_ADDRESS,
+        rssi=-40,
+        manufacturer_data={999: b"\x01"},
+        service_data={},
+        service_uuids=["00001234-0000-1000-8000-00805f9b34fb"],
+        source="local",
+        device=ble_device,
+        advertisement=AdvertisementData(
+            local_name="Generic Device",
+            manufacturer_data={999: b"\x01"},
+            service_data={},
+            service_uuids=["00001234-0000-1000-8000-00805f9b34fb"],
+            rssi=-40,
+            tx_power=None,
+            platform_data=(),
+        ),
+        time=time.time(),
+        connectable=True,
+        tx_power=-127,
+    )
+    discovery.return_value = [unmatched_discovery]
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "no_devices_found"
+
+
+@pytest.mark.usefixtures("mock_pairing")
 async def test_async_step_bluetooth_fallback_name(hass: HomeAssistant) -> None:
     """Test Bluetooth discovery flow fallback name when service info name is empty."""
     nameless_device = BLEDevice(DEVICE_ADDRESS, "", {})

@@ -15,7 +15,7 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import DOMAIN, SUUID, UPMFG
+from .const import DOMAIN, SUUID, UPMFG, MANUFACTURER_ID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,11 +114,12 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not info.name:  # Skip no-name devices
                 continue
 
-            # Pre-filter candidates by name or known service UUID
-            if (
-                UPMFG not in info.name.upper()
-                and SUUID not in info.service_uuids
-            ):
+            # Pre-filter candidates by name, manufacturer id, or known service UUIDs
+            has_ryse_uuid = SUUID in info.service_uuids
+            has_ryse_mfg = MANUFACTURER_ID in info.manufacturer_data
+            has_ryse_name = UPMFG in info.name.upper()
+
+            if not (has_ryse_uuid or has_ryse_mfg or has_ryse_name):
                 continue
             
             candidates.append(info)
