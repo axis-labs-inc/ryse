@@ -15,7 +15,7 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import DOMAIN, SUUID, UPMFG, MANUFACTURER_ID
+from .const import DOMAIN, MANUFACTURER_ID, SUUID, UPMFG
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,7 +121,7 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if not (has_ryse_uuid or has_ryse_mfg or has_ryse_name):
                 continue
-            
+
             candidates.append(info)
 
         async def _check_pairing(
@@ -131,7 +131,10 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 async with asyncio.timeout(5.0):
                     if await is_pairing_ryse_device(device_info.address):
                         return device_info
-            except Exception:
+            except Exception as ex:  # noqa: BLE001
+                _LOGGER.debug(
+                    "Failed to check pairing status for %s: %s", device_info.address, ex
+                )
                 return None
             return None
 
@@ -139,10 +142,10 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             results = await asyncio.gather(
                 *(_check_pairing(info) for info in candidates)
             )
-            for info in results:
-                if info is not None:
+            for device in results:
+                if device is not None:
                     # Add device to selection list
-                    self._discovered_devices[info.address] = info.name
+                    self._discovered_devices[device.address] = device.name
 
         if not self._discovered_devices:
             return self.async_abort(reason="no_devices_found")
