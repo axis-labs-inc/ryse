@@ -94,6 +94,7 @@ async def test_current_cover_position_invalid(
     entity = RyseCoverEntity(mock_device, mock_config_entry)
     entity._current_position = 200
     mock_device.is_valid_position.return_value = False
+    caplog.set_level(logging.WARNING, logger="homeassistant.components.ryse.cover")
 
     pos = entity.current_cover_position
     assert pos is None
