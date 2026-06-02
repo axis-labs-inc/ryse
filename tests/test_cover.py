@@ -133,6 +133,7 @@ async def test_async_update_timeout_error(
     mock_device.client.is_connected = True
 
     mock_device.send_get_position = AsyncMock(side_effect=TimeoutError())
+    caplog.set_level(logging.WARNING, logger="homeassistant.components.ryse.cover")
 
     await entity.async_update()
 
@@ -153,6 +154,7 @@ async def test_async_update_generic_exception(
     mock_device.client.is_connected = True
 
     mock_device.send_get_position = AsyncMock(side_effect=Exception("boom"))
+    caplog.set_level(logging.ERROR, logger="homeassistant.components.ryse.cover")
 
     await entity.async_update()
 
