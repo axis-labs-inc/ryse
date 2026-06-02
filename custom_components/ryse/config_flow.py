@@ -85,7 +85,7 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             name = self._discovered_devices.get(address)
 
             if name is None:
-                _LOGGER.warning(
+                _LOGGER.debug(
                     "Address %s not found in discovered devices; re-running discovery",
                     address,
                 )
