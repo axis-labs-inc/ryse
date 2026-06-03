@@ -186,8 +186,9 @@ async def test_entity_lifecycle(
     # Attach hass so base-class async_added_to_hass() can run without errors
     entity.hass = hass
 
-    # Mock async_on_remove to check registration
-    entity.async_on_remove = MagicMock()
+    # Spy on async_on_remove to check registration while preserving base behavior
+    original_on_remove = entity.async_on_remove
+    entity.async_on_remove = MagicMock(side_effect=original_on_remove)
 
     # Call added_to_hass
     await entity.async_added_to_hass()
