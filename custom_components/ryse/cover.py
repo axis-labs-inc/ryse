@@ -44,7 +44,6 @@ class RyseCoverEntity(CoverEntity):
     def __init__(self, device: RyseBLEDevice, config_entry: ConfigEntry) -> None:
         """Initialize the Smart Shade cover entity."""
         self._device = device
-        self._config_entry = config_entry
 
         self._attr_unique_id = f"{device.address}_cover"
         self._current_position: int | None = None
