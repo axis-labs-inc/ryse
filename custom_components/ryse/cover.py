@@ -105,6 +105,7 @@ class RyseCoverEntity(CoverEntity):
         """Open the shade."""
         await self._device.send_open()
         _LOGGER.debug("Change position to open")
+        self._current_position = 100
         self._attr_is_closed = False
         self.async_write_ha_state()
 
@@ -112,6 +113,7 @@ class RyseCoverEntity(CoverEntity):
         """Close the shade."""
         await self._device.send_close()
         _LOGGER.debug("Change position to close")
+        self._current_position = 0
         self._attr_is_closed = True
         self.async_write_ha_state()
 
