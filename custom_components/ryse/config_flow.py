@@ -133,7 +133,9 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         return device_info
             except TimeoutError as ex:
                 _LOGGER.debug(
-                    "Timeout checking pairing status for %s: %s", device_info.address, ex
+                    "Timeout checking pairing status for %s: %s",
+                    device_info.address,
+                    ex,
                 )
                 return None
             except Exception:

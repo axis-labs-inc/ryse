@@ -56,13 +56,15 @@ async def test_update_position_valid(
 
 
 async def test_async_open_close_and_set_cover(
-    mock_device: MagicMock, mock_config_entry: MockConfigEntry
+    hass: HomeAssistant, mock_device: MagicMock, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test open, close and set cover methods."""
     mock_device.send_open = AsyncMock()
     mock_device.send_close = AsyncMock()
     mock_device.send_set_position = AsyncMock()
     entity = RyseCoverEntity(mock_device, mock_config_entry)
+    entity.hass = hass
+    entity.async_write_ha_state = MagicMock()
 
     await entity.async_open_cover()
     await entity.async_close_cover()
