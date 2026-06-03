@@ -108,9 +108,7 @@ class RyseCoverEntity(CoverEntity):
         try:
             await self._device.send_open()
         except (TimeoutError, OSError, BleakError) as err:
-            raise HomeAssistantError(
-                f"Failed to open cover: {err}"
-            ) from err
+            raise HomeAssistantError(f"Failed to open cover: {err}") from err
         _LOGGER.debug("Change position to open")
         self._current_position = 100
         self._attr_is_closed = False
@@ -121,9 +119,7 @@ class RyseCoverEntity(CoverEntity):
         try:
             await self._device.send_close()
         except (TimeoutError, OSError, BleakError) as err:
-            raise HomeAssistantError(
-                f"Failed to close cover: {err}"
-            ) from err
+            raise HomeAssistantError(f"Failed to close cover: {err}") from err
         _LOGGER.debug("Change position to close")
         self._current_position = 0
         self._attr_is_closed = True
@@ -136,9 +132,7 @@ class RyseCoverEntity(CoverEntity):
         try:
             await self._device.send_set_position(device_position)
         except (TimeoutError, OSError, BleakError) as err:
-            raise HomeAssistantError(
-                f"Failed to set cover position: {err}"
-            ) from err
+            raise HomeAssistantError(f"Failed to set cover position: {err}") from err
         _LOGGER.debug("Change position to a specific position")
         self._attr_is_closed = self._device.is_closed(device_position)
         self._current_position = ha_position

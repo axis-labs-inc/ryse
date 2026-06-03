@@ -3,13 +3,14 @@
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from bleak import BleakError
+import pytest
+
 from homeassistant.components.cover import ATTR_POSITION, CoverEntityFeature
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components.ryse.const import DOMAIN
 from homeassistant.components.ryse.cover import RyseCoverEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from tests.common import MockConfigEntry
 
@@ -114,6 +115,7 @@ async def test_current_cover_position_invalid(
     pos = entity.current_cover_position
     assert pos is None
     assert "Invalid position" in caplog.text
+
 
 async def test_async_update_connected_triggers_available_and_get_position(
     mock_device: MagicMock, mock_config_entry: MockConfigEntry
@@ -278,6 +280,7 @@ async def test_async_update_pairing_failure_no_log_debug(
 # ---------------------------------------------------------------------------
 # Exception-handling tests for BLE command methods
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "exc",
