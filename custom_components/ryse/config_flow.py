@@ -15,7 +15,7 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import DOMAIN, MANUFACTURER_ID, SERVICE_UUID, MANUFACTURER_NAME
+from .const import DOMAIN, MANUFACTURER_ID, MANUFACTURER_NAME, SERVICE_UUID
 
 _LOGGER = logging.getLogger(__name__)
 
