@@ -63,7 +63,7 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
             except Exception:
                 _LOGGER.exception("Unexpected error during bluetooth confirm")
-                errors["base"] = "unknown"
+                errors["base"] = "unexpected_error"
 
         self._set_confirm_only()
         self.context["title_placeholders"] = {"name": name}
@@ -101,7 +101,7 @@ class RyseBLEDeviceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "cannot_connect"
                 except Exception:
                     _LOGGER.exception("Unexpected exception")
-                    errors["base"] = "unknown"
+                    errors["base"] = "unexpected_error"
 
         current_ids = self._async_current_ids(include_ignore=False)
 
