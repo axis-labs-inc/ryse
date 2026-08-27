@@ -103,27 +103,25 @@ async def test_async_step_user_success(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.parametrize(
-    ("raise_error", "expected_error"),
+    ("pair_result", "expected_error"),
     [
         (Exception("boom"), "unexpected_error"),
         (TimeoutError("timeout"), "cannot_connect"),
         (OSError("os error"), "cannot_connect"),
         (BleakError("bleak error"), "cannot_connect"),
-        (None, "cannot_connect"),
+        (False, "cannot_connect"),
     ],
 )
 @pytest.mark.usefixtures("discovery")
 async def test_async_step_user_errors(
     hass: HomeAssistant,
     mock_pairing: tuple[MagicMock, MagicMock],
-    raise_error: Exception | None,
+    pair_result: Exception | bool,
     expected_error: str,
 ) -> None:
     """Test errors during user pairing can be recovered from."""
     mock_pair, _ = mock_pairing
-    mock_pair.side_effect = raise_error
-    if raise_error is None:
-        mock_pair.return_value = False
+    mock_pair.side_effect = [pair_result, True]
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
@@ -136,9 +134,6 @@ async def test_async_step_user_errors(
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": expected_error}
-
-    mock_pair.side_effect = None
-    mock_pair.return_value = True
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], USER_INPUT
@@ -215,26 +210,24 @@ async def test_async_step_bluetooth(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.parametrize(
-    ("raise_error", "error_text"),
+    ("pair_result", "error_text"),
     [
         (Exception("boom"), "unexpected_error"),
         (TimeoutError("timeout"), "cannot_connect"),
         (OSError("os error"), "cannot_connect"),
         (BleakError("bleak error"), "cannot_connect"),
-        (None, "cannot_connect"),
+        (False, "cannot_connect"),
     ],
 )
 async def test_async_step_bluetooth_errors(
     hass: HomeAssistant,
     mock_pairing: tuple[MagicMock, MagicMock],
-    raise_error: Exception | None,
+    pair_result: Exception | bool,
     error_text: str,
 ) -> None:
     """Test Bluetooth discovery confirm errors can be recovered from."""
     mock_pair, _ = mock_pairing
-    mock_pair.side_effect = raise_error
-    if raise_error is None:
-        mock_pair.return_value = False
+    mock_pair.side_effect = [pair_result, True]
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
@@ -251,9 +244,6 @@ async def test_async_step_bluetooth_errors(
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": error_text}
-
-    mock_pair.side_effect = None
-    mock_pair.return_value = True
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={}
