@@ -31,8 +31,7 @@ def mock_ryse_ble_device() -> Generator[MagicMock]:
     device.send_get_position = AsyncMock()
 
     with patch(
-        "homeassistant.components.ryse.cover.RyseBLEDevice",
+        "homeassistant.components.ryse.RyseBLEDevice",
         return_value=device,
-    ) as mock_cls:
-        mock_cls.return_value = device
+    ):
         yield device

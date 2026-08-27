@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
+from bleak.exc import BleakError
 import pytest
 
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
@@ -120,6 +121,9 @@ async def test_async_step_user_success(hass: HomeAssistant) -> None:
     ("raise_error", "expected_error"),
     [
         (Exception("boom"), "unexpected_error"),
+        (TimeoutError("timeout"), "cannot_connect"),
+        (OSError("os error"), "cannot_connect"),
+        (BleakError("bleak error"), "cannot_connect"),
         (None, "cannot_connect"),
     ],
 )
@@ -227,6 +231,9 @@ async def test_async_step_bluetooth(hass: HomeAssistant) -> None:
     ("raise_error", "error_text"),
     [
         (Exception("boom"), "unexpected_error"),
+        (TimeoutError("timeout"), "cannot_connect"),
+        (OSError("os error"), "cannot_connect"),
+        (BleakError("bleak error"), "cannot_connect"),
         (None, "cannot_connect"),
     ],
 )
@@ -491,3 +498,36 @@ async def test_async_step_bluetooth_fallback_name(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "bluetooth_confirm"
     assert result["description_placeholders"] == {"name": "RYSE device"}
+
+
+async def test_async_step_user_pairing_check_timeout(
+    hass: HomeAssistant, discovery: MagicMock, mock_pairing: tuple[MagicMock, MagicMock]
+) -> None:
+    """Test handling a timeout when checking if a device is in pairing mode."""
+    _, mock_is_pair = mock_pairing
+    # Simulate a timeout error inside the async context
+    mock_is_pair.side_effect = TimeoutError("Connection timed out")
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+    # Because it timed out, the candidate is discarded, leaving no devices
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "no_devices_found"
+
+
+async def test_async_step_user_pairing_check_unexpected_exception(
+    hass: HomeAssistant, discovery: MagicMock, mock_pairing: tuple[MagicMock, MagicMock]
+) -> None:
+    """Test handling an unexpected exception when checking pairing status."""
+    _, mock_is_pair = mock_pairing
+    mock_is_pair.side_effect = RuntimeError("Hardware failure")
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+    # Discarded due to exception, leading to no devices found
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "no_devices_found"
