@@ -119,8 +119,7 @@ async def test_async_step_user_errors(
     raise_error: Exception | None,
     expected_error: str,
 ) -> None:
-    """Test errors during user pairing."""
-
+    """Test errors during user pairing can be recovered from."""
     mock_pair, _ = mock_pairing
     mock_pair.side_effect = raise_error
     if raise_error is None:
@@ -137,6 +136,18 @@ async def test_async_step_user_errors(
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": expected_error}
+
+    mock_pair.side_effect = None
+    mock_pair.return_value = True
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], USER_INPUT
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == DEVICE_NAME
+    assert result["data"] == {}
+    assert result["result"].unique_id == DEVICE_ADDRESS
 
 
 @pytest.mark.usefixtures("discovery", "mock_pairing")
@@ -219,8 +230,7 @@ async def test_async_step_bluetooth_errors(
     raise_error: Exception | None,
     error_text: str,
 ) -> None:
-    """Test Bluetooth discovery confirm error handling."""
-
+    """Test Bluetooth discovery confirm errors can be recovered from."""
     mock_pair, _ = mock_pairing
     mock_pair.side_effect = raise_error
     if raise_error is None:
@@ -241,6 +251,18 @@ async def test_async_step_bluetooth_errors(
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": error_text}
+
+    mock_pair.side_effect = None
+    mock_pair.return_value = True
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == DEVICE_NAME
+    assert result["data"] == {}
+    assert result["result"].unique_id == DEVICE_ADDRESS
 
 
 @pytest.mark.usefixtures("mock_pairing")
@@ -368,6 +390,15 @@ async def test_async_step_user_filter_matching_manufacturer_id(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
 
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], USER_INPUT
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Generic Device"
+    assert result["data"] == {}
+    assert result["result"].unique_id == DEVICE_ADDRESS
+
 
 @pytest.mark.usefixtures("mock_pairing")
 async def test_async_step_user_filter_matching_service_uuid(
@@ -405,6 +436,15 @@ async def test_async_step_user_filter_matching_service_uuid(
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], USER_INPUT
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Generic Device"
+    assert result["data"] == {}
+    assert result["result"].unique_id == DEVICE_ADDRESS
 
 
 @pytest.mark.usefixtures("mock_pairing")
@@ -473,6 +513,15 @@ async def test_async_step_bluetooth_fallback_name(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "bluetooth_confirm"
     assert result["description_placeholders"] == {"name": "RYSE device"}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "RYSE device"
+    assert result["data"] == {}
+    assert result["result"].unique_id == DEVICE_ADDRESS
 
 
 async def test_async_step_user_pairing_check_timeout(
