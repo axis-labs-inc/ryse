@@ -18,12 +18,10 @@ def mock_ryse_ble_device() -> Generator[MagicMock]:
     device.update_callback = None
     device.client = None
 
-    # Sensible defaults for position helpers
     device.is_valid_position.return_value = True
     device.get_real_position.side_effect = lambda x: 100 - x
     device.is_closed.side_effect = lambda x: x == 100
 
-    # BLE commands are coroutines
     device.pair = AsyncMock(return_value=True)
     device.send_open = AsyncMock()
     device.send_close = AsyncMock()

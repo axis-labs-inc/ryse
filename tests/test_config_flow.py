@@ -20,10 +20,6 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from tests.common import MockConfigEntry
 
-# ---------------------------------------------------------------------------
-# Test constants
-# ---------------------------------------------------------------------------
-
 DEVICE_NAME = "RYSE Shade"
 DEVICE_ADDRESS = "AA:BB:CC:DD:EE:FF"
 RSSI_VALUE = -40
@@ -37,7 +33,6 @@ ADVERTISEMENT_DATA = AdvertisementData(
     tx_power=None,
     platform_data=(),
 )
-
 
 BLE_DEVICE = BLEDevice(DEVICE_ADDRESS, DEVICE_NAME, {})
 
@@ -57,11 +52,6 @@ DISCOVERY_INFO = BluetoothServiceInfoBleak(
 )
 
 USER_INPUT = {CONF_ADDRESS: DEVICE_ADDRESS}
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -91,11 +81,6 @@ def discovery() -> Generator[MagicMock]:
     ) as mock_discovery:
         mock_discovery.return_value = [DISCOVERY_INFO]
         yield mock_discovery
-
-
-# ---------------------------------------------------------------------------
-# USER STEP TESTS
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.usefixtures("discovery", "mock_pairing")
@@ -159,14 +144,11 @@ async def test_async_step_user_device_added_between_steps(
     hass: HomeAssistant,
 ) -> None:
     """Test that we abort if the device gets added in another flow."""
-
-    # Start flow
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
     assert result["type"] is FlowResultType.FORM
 
-    # Add entry manually (simulating another flow creating it)
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=DEVICE_ADDRESS,
@@ -174,7 +156,6 @@ async def test_async_step_user_device_added_between_steps(
     )
     entry.add_to_hass(hass)
 
-    # Continue previous flow → must abort
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], USER_INPUT
     )
@@ -197,11 +178,6 @@ async def test_async_step_user_no_devices_found(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "no_devices_found"
-
-
-# ---------------------------------------------------------------------------
-# BLUETOOTH DISCOVERY TESTS
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.usefixtures("mock_pairing")
@@ -295,7 +271,6 @@ async def test_async_step_user_skips_already_configured(
     hass: HomeAssistant, discovery: MagicMock
 ) -> None:
     """Test that we skip already configured devices in user flow discovery."""
-    # Add the device as already configured
     entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=DEVICE_ADDRESS,
@@ -505,14 +480,12 @@ async def test_async_step_user_pairing_check_timeout(
 ) -> None:
     """Test handling a timeout when checking if a device is in pairing mode."""
     _, mock_is_pair = mock_pairing
-    # Simulate a timeout error inside the async context
     mock_is_pair.side_effect = TimeoutError("Connection timed out")
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
 
-    # Because it timed out, the candidate is discarded, leaving no devices
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "no_devices_found"
 
@@ -528,6 +501,5 @@ async def test_async_step_user_pairing_check_unexpected_exception(
         DOMAIN, context={"source": SOURCE_USER}
     )
 
-    # Discarded due to exception, leading to no devices found
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "no_devices_found"
