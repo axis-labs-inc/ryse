@@ -14,25 +14,6 @@ from homeassistant.exceptions import HomeAssistantError
 from tests.common import MockConfigEntry
 
 
-@pytest.fixture
-def mock_config_entry() -> MockConfigEntry:
-    """Return a minimal mock ConfigEntry."""
-    return MockConfigEntry(
-        domain="ryse", title="Test Device", data={}, unique_id="AA:BB:CC:DD:EE:FF"
-    )
-
-
-@pytest.fixture
-def mock_device() -> MagicMock:
-    """Mock RyseBLEDevice."""
-    device = MagicMock()
-    device.address = "AA:BB:CC:DD:EE:FF"
-    device.is_valid_position.return_value = True
-    device.get_real_position.side_effect = lambda x: 100 - x
-    device.is_closed.side_effect = lambda x: x == 100
-    return device
-
-
 async def test_cover_properties(
     mock_device: MagicMock, mock_config_entry: MockConfigEntry
 ) -> None:
