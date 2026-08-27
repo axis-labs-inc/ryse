@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from homeassistant.components.ryse.const import DOMAIN
+from homeassistant.core import HomeAssistant
 
 from tests.common import MockConfigEntry
 
@@ -47,3 +48,27 @@ def mock_ryse_ble_device(mock_device: MagicMock) -> Generator[MagicMock]:
         return_value=mock_device,
     ):
         yield mock_device
+
+
+@pytest.fixture
+def mock_ble_device_from_address() -> Generator[MagicMock]:
+    """Patch the bluetooth lookup so the device is always discoverable."""
+    with patch(
+        "homeassistant.components.ryse.async_ble_device_from_address",
+        return_value=MagicMock(),
+    ) as mock_from_address:
+        yield mock_from_address
+
+
+@pytest.fixture
+async def setup_integration(
+    hass: HomeAssistant,
+    mock_ble_device_from_address: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> MockConfigEntry:
+    """Set up the RYSE integration and return its config entry."""
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    return mock_config_entry
