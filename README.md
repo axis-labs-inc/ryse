@@ -13,9 +13,13 @@ the tree in your Home Assistant should be be like the following:
         └── custom_components
             └── ryse
                 └── __init__.py
-                └── bluetooth.py
+                └── config_flow.py
                 └── cover.py
+                └── manifest.json
                 └── ...
+
+For detailed installation, pairing and troubleshooting instructions, see the
+[user guide](docs/user-guide.md).
 
 ## Usage
 Reboot your home assistant and now you can play with RYSE BLE devices via your Home Assistant.
