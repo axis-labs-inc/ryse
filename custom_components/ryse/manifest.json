@@ -7,7 +7,7 @@
       "manufacturer_id": 1033
     }
   ],
-  "codeowners": ["@mohamedkalel82"],
+  "codeowners": ["@mohamedkallel82"],
   "config_flow": true,
   "version": "1.0.0",
   "dependencies": ["bluetooth"],
