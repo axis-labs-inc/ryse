@@ -31,7 +31,13 @@
 
         },
         "abort": {
+            "already_configured": "Device is already configured",
             "no_devices_found": "No RYSE BLE device found in pairing mode. Please Press PAIR button and retry"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "not_in_pairing_mode": "The device is not in pairing mode. Press and hold the PAIR button, then try again.",
+            "unexpected_error": "Unexpected error"
         }
     }
 }

@@ -29,10 +29,9 @@ being missing.
 | Requirement | Details |
 | --- | --- |
 | Home Assistant version | **2026.3 or newer.** The component uses Python 3.14 syntax, and 2026.3 is the first release that runs on Python 3.14. On older versions the component fails to load with a `SyntaxError`. |
-| Bluetooth adapter | A working Bluetooth adapter on the bridge (built-in, USB dongle, or a Bluetooth proxy is *not* enough — see the limitations below). |
+| Bluetooth | A Bluetooth adapter on the bridge (built-in or USB dongle), or a remote Bluetooth proxy such as an ESPHome device with active connections enabled. |
 | Bluetooth integration | Home Assistant's **Bluetooth** integration must already be set up under **Settings → Devices & services**. |
-| BlueZ / `bluetoothctl` | Pairing is performed with `bluetoothctl`. It is already present on Home Assistant OS, Supervised, and the official Container image. On a Core install in a Python virtual environment, install it yourself (`sudo apt install bluez` on Debian/Ubuntu). |
-| Internet access | On first start Home Assistant downloads the `ryseble` library (version 1.9.0) from PyPI. |
+| Internet access | On first start Home Assistant downloads the `ryseble` library (version 2.0.0) from PyPI. |
 | Range | Keep the shade within a few metres of the bridge while pairing. Walls and metal blinds reduce range considerably. |
 
 ---
@@ -138,9 +137,9 @@ press the PAIR button and retry."* — press the PAIR button on the shade and st
 
 ### 3.3 What happens during pairing
 
-Pairing usually takes between 10 and 30 seconds. In the background Home Assistant trusts,
-connects, pairs and bonds the shade over BlueZ, and retries up to three times before
-giving up. Leave the shade powered and in range until the dialog closes.
+Pairing usually takes between 10 and 30 seconds. In the background Home Assistant connects
+to the shade, bonds with it, and retries a few times before giving up. Leave the shade
+powered and in range until the dialog closes.
 
 ### 3.4 The result
 
@@ -193,14 +192,10 @@ the shade is not already added to Home Assistant — configured devices are filt
 the list on purpose.
 
 **Pairing fails with "Failed to connect"**
-Move the bridge and the shade closer together, power-cycle the shade, and try again. If
-it keeps failing, an old bond may be in the way. From a terminal on the bridge:
-
-```bash
-bluetoothctl remove AA:BB:CC:DD:EE:FF
-```
-
-Use your shade's Bluetooth address, then pair again.
+Move the bridge and the shade closer together, power-cycle the shade, and try again. If it
+keeps failing, an old bond may be in the way. On a Linux bridge with its own adapter you
+can clear it from a terminal with `bluetoothctl remove AA:BB:CC:DD:EE:FF`, using your
+shade's Bluetooth address, then pair again.
 
 **The entity stays *Unavailable***
 The shade is out of range, powered down, or connected to something else — a phone running
@@ -238,9 +233,9 @@ the entry for that device.
 
 ## 7. Known limitations
 
-- The bridge needs its own Bluetooth adapter. Pairing shells out to `bluetoothctl` on the
-  machine running Home Assistant, so remote Bluetooth proxies (ESPHome and similar) cannot
-  be used to pair a shade.
+- Bonding is handled by the Bluetooth backend in use. A proxy must support active
+  connections and pairing for setup to work through it; passive-only proxies can see the
+  shade advertise but cannot pair with it.
 - A shade can only talk to one client at a time. Keep the RYSE phone app closed while
   Home Assistant is using it.
 - Tilt is not supported; the shade exposes open, close and position only.

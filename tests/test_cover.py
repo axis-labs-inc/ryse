@@ -29,9 +29,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
+from . import DEVICE_ADDRESS
+
 from tests.common import MockConfigEntry, async_fire_time_changed
 
-DEVICE_ADDRESS = "AA:BB:CC:DD:EE:FF"
 ENTITY_ID = "cover.test_device"
 LOGGER_NAME = "homeassistant.components.ryse.cover"
 
@@ -42,6 +43,15 @@ async def async_poll_device(
     """Advance time so the cover platform polls the device once."""
     freezer.tick(SCAN_INTERVAL)
     async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+
+async def async_report_position(
+    hass: HomeAssistant, mock_device: MagicMock, position: int
+) -> None:
+    """Push a position report from the device to its subscribers."""
+    for callback in list(mock_device.position_callbacks):
+        callback(position)
     await hass.async_block_till_done()
 
 
@@ -104,18 +114,18 @@ async def test_cover_unavailable_until_first_poll(
     mock_device.send_get_position.assert_awaited_once()
 
 
-async def test_cover_polls_connected_device_without_pairing(
+async def test_cover_polls_connected_device_without_reconnecting(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     mock_device: MagicMock,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Test an already connected device is not paired again."""
-    mock_device.client = MagicMock(is_connected=True)
+    """Test an already connected device is not connected to again."""
+    mock_device.is_connected = True
 
     await async_poll_device(hass, freezer)
 
-    mock_device.pair.assert_not_awaited()
+    mock_device.connect.assert_not_awaited()
     mock_device.send_get_position.assert_awaited_once()
     state = hass.states.get(ENTITY_ID)
     assert state
@@ -128,8 +138,7 @@ async def test_position_notification(
     polled_cover: MockConfigEntry,
 ) -> None:
     """Test a position notification from the device updates the state machine."""
-    await mock_device.update_callback(100)
-    await hass.async_block_till_done()
+    await async_report_position(hass, mock_device, 100)
 
     state = hass.states.get(ENTITY_ID)
     assert state
@@ -146,16 +155,14 @@ async def test_position_notification_out_of_range(
     """Test an out of range position is not exposed to the state machine."""
     caplog.set_level(logging.WARNING, logger=LOGGER_NAME)
 
-    await mock_device.update_callback(58)
-    await hass.async_block_till_done()
+    await async_report_position(hass, mock_device, 58)
 
     state = hass.states.get(ENTITY_ID)
     assert state
     assert state.attributes[ATTR_CURRENT_POSITION] == 42
 
     mock_device.is_valid_position.return_value = False
-    await mock_device.update_callback(58)
-    await hass.async_block_till_done()
+    await async_report_position(hass, mock_device, 58)
 
     state = hass.states.get(ENTITY_ID)
     assert state
@@ -255,23 +262,23 @@ async def test_cover_services_ble_error(
     assert state.attributes.get(ATTR_CURRENT_POSITION) is None
 
 
-async def test_pairing_failure_marks_unavailable(
+async def test_connect_failure_marks_unavailable(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     mock_device: MagicMock,
     caplog: pytest.LogCaptureFixture,
     polled_cover: MockConfigEntry,
 ) -> None:
-    """Test a failed pairing marks the cover unavailable and is logged once."""
+    """Test a failed connection marks the cover unavailable and is logged once."""
     caplog.set_level(logging.DEBUG, logger=LOGGER_NAME)
-    mock_device.pair.return_value = False
+    mock_device.connect.return_value = False
 
     await async_poll_device(hass, freezer)
 
     state = hass.states.get(ENTITY_ID)
     assert state
     assert state.state == STATE_UNAVAILABLE
-    assert "Failed to pair with device, skipping update" in caplog.text
+    assert "Failed to connect to device, skipping update" in caplog.text
 
     caplog.clear()
     await async_poll_device(hass, freezer)
@@ -279,7 +286,7 @@ async def test_pairing_failure_marks_unavailable(
     state = hass.states.get(ENTITY_ID)
     assert state
     assert state.state == STATE_UNAVAILABLE
-    assert "Failed to pair with device, skipping update" not in caplog.text
+    assert "Failed to connect to device, skipping update" not in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -307,30 +314,36 @@ async def test_ble_error_while_polling_marks_unavailable(
     assert "BLE communication error while reading device data" in caplog.text
 
 
-async def test_notification_callback_lifecycle(
+async def test_disconnect_marks_unavailable(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    polled_cover: MockConfigEntry,
+) -> None:
+    """Test the cover goes unavailable as soon as the device disconnects."""
+    state = hass.states.get(ENTITY_ID)
+    assert state
+    assert state.state != STATE_UNAVAILABLE
+
+    for callback in list(mock_device.disconnected_callbacks):
+        callback()
+    await hass.async_block_till_done()
+
+    state = hass.states.get(ENTITY_ID)
+    assert state
+    assert state.state == STATE_UNAVAILABLE
+
+
+async def test_subscription_lifecycle(
     hass: HomeAssistant,
     mock_device: MagicMock,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Test the device notification callback is registered and removed again."""
-    assert mock_device.update_callback is not None
+    """Test device subscriptions are registered and released again."""
+    assert len(mock_device.position_callbacks) == 1
+    assert len(mock_device.disconnected_callbacks) == 1
 
     await hass.config_entries.async_unload(setup_integration.entry_id)
     await hass.async_block_till_done()
 
-    assert mock_device.update_callback is None
-
-
-async def test_notification_callback_replaced(
-    hass: HomeAssistant,
-    mock_device: MagicMock,
-    setup_integration: MockConfigEntry,
-) -> None:
-    """Test unloading keeps a callback that was registered by someone else."""
-    other_callback = MagicMock()
-    mock_device.update_callback = other_callback
-
-    await hass.config_entries.async_unload(setup_integration.entry_id)
-    await hass.async_block_till_done()
-
-    assert mock_device.update_callback is other_callback
+    assert mock_device.position_callbacks == []
+    assert mock_device.disconnected_callbacks == []

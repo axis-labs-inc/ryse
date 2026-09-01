@@ -4,14 +4,14 @@ import logging
 from typing import Any
 
 from bleak import BleakError
-from ryseble.device import RyseBLEDevice
+from ryseble import RyseBLEDevice
 
 from homeassistant.components.cover import (
     ATTR_POSITION,
     CoverEntity,
     CoverEntityFeature,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -27,8 +27,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up RYSE Smart Shade cover from a config entry."""
-    device = entry.runtime_data
-    async_add_entities([RyseCoverEntity(device, entry)])
+    async_add_entities([RyseCoverEntity(entry.runtime_data, entry)])
 
 
 class RyseCoverEntity(CoverEntity):
@@ -57,23 +56,18 @@ class RyseCoverEntity(CoverEntity):
         )
 
     async def async_added_to_hass(self) -> None:
-        """Run when entity is added to Home Assistant."""
+        """Subscribe to device updates when the entity is added."""
         await super().async_added_to_hass()
-        self._device.update_callback = self._update_position
-        self.async_on_remove(self._clear_callback)
+        self.async_on_remove(
+            self._device.register_position_callback(self._handle_position_update)
+        )
+        self.async_on_remove(
+            self._device.register_disconnected_callback(self._handle_disconnect)
+        )
 
-    async def async_will_remove_from_hass(self) -> None:
-        """Cleanup before entity removal."""
-        await super().async_will_remove_from_hass()
-        self._clear_callback()
-
-    def _clear_callback(self) -> None:
-        """Remove callback cleanly."""
-        if getattr(self._device, "update_callback", None) == self._update_position:
-            self._device.update_callback = None
-
-    async def _update_position(self, position: int) -> None:
-        """Update cover position when receiving notification."""
+    @callback
+    def _handle_position_update(self, position: int) -> None:
+        """Handle a position report pushed by the device."""
         if self._device.is_valid_position(position):
             real_position = self._device.get_real_position(position)
             self._current_position = real_position
@@ -81,6 +75,12 @@ class RyseCoverEntity(CoverEntity):
             _LOGGER.debug(
                 "Updated cover position: raw=%d mapped=%d", position, real_position
             )
+        self.async_write_ha_state()
+
+    @callback
+    def _handle_disconnect(self) -> None:
+        """Handle the device dropping the connection."""
+        self._attr_available = False
         self.async_write_ha_state()
 
     async def async_open_cover(self, **kwargs: Any) -> None:
@@ -121,13 +121,11 @@ class RyseCoverEntity(CoverEntity):
     async def async_update(self) -> None:
         """Fetch the current state and position from the device."""
         try:
-            if not self._device.client or not self._device.client.is_connected:
-                paired = await self._device.pair()
-                if not paired:
-                    if self._attr_available:
-                        _LOGGER.debug("Failed to pair with device, skipping update")
-                    self._attr_available = False
-                    return
+            if not self._device.is_connected and not await self._device.connect():
+                if self._attr_available:
+                    _LOGGER.debug("Failed to connect to device, skipping update")
+                self._attr_available = False
+                return
 
             self._attr_available = True
 
