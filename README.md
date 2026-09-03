@@ -9,6 +9,12 @@ Once a shade is paired it appears in Home Assistant as a normal **cover** entity
 can open it, close it, set it to any position, put it on a dashboard, and use it in
 automations and scenes.
 
+If you use a **RYSE SmartBridge** (IoT IP gateway) instead of direct Bluetooth, follow the
+separate guide:
+[Pair a RYSE SmartBridge with Home Assistant](docs/smartbridge-user-guide.md).
+That path uses Home Assistant’s built-in **HomeKit Device** integration and does not need
+this custom component.
+
 **Contents**
 
 1. [Before you start](#1-before-you-start)
@@ -18,6 +24,7 @@ automations and scenes.
 5. [Troubleshooting](#5-troubleshooting)
 6. [Updating and removing](#6-updating-and-removing)
 7. [Known limitations](#7-known-limitations)
+8. [Related guides](#8-related-guides)
 
 ---
 
@@ -246,3 +253,11 @@ the entry for that device.
 - Tilt is not supported; the shade exposes open, close and position only.
 - The integration is installed manually. This repository is not currently packaged for
   HACS.
+
+---
+
+## 8. Related guides
+
+- [Pair a RYSE SmartBridge with Home Assistant](docs/smartbridge-user-guide.md) —
+  connect the IoT IP gateway over the local network via **HomeKit Device** (no BLE
+  custom component required).
