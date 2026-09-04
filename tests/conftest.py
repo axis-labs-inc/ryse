@@ -33,6 +33,8 @@ def mock_device() -> MagicMock:
     device.get_real_position.side_effect = lambda x: 100 - x
     device.is_closed.side_effect = lambda x: x == 100
     device.pair = AsyncMock(return_value=True)
+    device.unpair = AsyncMock()
+    device.set_ble_device = MagicMock()
     device.send_open = AsyncMock()
     device.send_close = AsyncMock()
     device.send_set_position = AsyncMock()
