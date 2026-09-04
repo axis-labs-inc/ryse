@@ -20,11 +20,7 @@ rules:
   entity-event-setup: done
   entity-unique-id: done
   has-entity-name: done
-  runtime-data:
-    status: exempt
-    comment: |
-      The integration only manages a simple BLE connection and does not maintain shared runtime state.
-      Runtime data storage is unnecessary since all state is handled per device via BLE.
+  runtime-data: done
   test-before-configure: done
   test-before-setup: done
   unique-config-entry: done
