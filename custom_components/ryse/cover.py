@@ -120,6 +120,7 @@ class RyseCoverEntity(CoverEntity):
 
     async def async_update(self) -> None:
         """Fetch the current state and position from the device."""
+        paired = False
         try:
             if not self._device.client or not self._device.client.is_connected:
                 paired = await self._device.pair()
@@ -131,7 +132,7 @@ class RyseCoverEntity(CoverEntity):
 
             self._attr_available = True
 
-            if self._current_position is None:
+            if paired or self._current_position is None:
                 await self._device.send_get_position()
 
         except (TimeoutError, OSError, BleakError) as err:
