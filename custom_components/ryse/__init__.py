@@ -1,5 +1,6 @@
 """The RYSE integration."""
 
+from bleak import BleakError
 from ryseble.device import RyseBLEDevice
 
 from homeassistant.components.bluetooth import (
@@ -30,6 +31,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
         raise ConfigEntryNotReady(f"Could not find RYSE device with address {address}")
 
     device = RyseBLEDevice(ble_device)
+    try:
+        if not await device.pair():
+            await device.unpair()
+            raise ConfigEntryNotReady(
+                f"Could not connect to RYSE device with address {address}"
+            )
+    except (TimeoutError, OSError, BleakError) as err:
+        await device.unpair()
+        raise ConfigEntryNotReady(
+            f"Could not connect to RYSE device with address {address}"
+        ) from err
+
     entry.runtime_data = device
 
     @callback

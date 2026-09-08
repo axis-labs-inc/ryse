@@ -112,6 +112,7 @@ async def test_cover_polls_connected_device_without_pairing(
 ) -> None:
     """Test an already connected device is not paired again."""
     mock_device.client = MagicMock(is_connected=True)
+    mock_device.pair.reset_mock()
 
     await async_poll_device(hass, freezer)
 
