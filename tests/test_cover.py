@@ -143,8 +143,9 @@ async def test_position_notification_out_of_range(
     caplog: pytest.LogCaptureFixture,
     polled_cover: MockConfigEntry,
 ) -> None:
-    """Test an out of range position is not exposed to the state machine."""
+    """Test an out of range position clears cached cover state."""
     caplog.set_level(logging.WARNING, logger=LOGGER_NAME)
+    mock_device.is_valid_position.side_effect = lambda position: 0 <= position <= 100
 
     await mock_device.update_callback(58)
     await hass.async_block_till_done()
@@ -152,15 +153,16 @@ async def test_position_notification_out_of_range(
     state = hass.states.get(ENTITY_ID)
     assert state
     assert state.attributes[ATTR_CURRENT_POSITION] == 42
+    assert state.state == CoverState.OPEN
 
-    mock_device.is_valid_position.return_value = False
-    await mock_device.update_callback(58)
+    await mock_device.update_callback(150)
     await hass.async_block_till_done()
 
     state = hass.states.get(ENTITY_ID)
     assert state
     assert state.attributes.get(ATTR_CURRENT_POSITION) is None
-    assert "Invalid position value detected: 42" in caplog.text
+    assert state.state == STATE_UNKNOWN
+    assert "Invalid position value detected: 150" in caplog.text
 
 
 @pytest.mark.parametrize(

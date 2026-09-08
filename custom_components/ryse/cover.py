@@ -81,6 +81,10 @@ class RyseCoverEntity(CoverEntity):
             _LOGGER.debug(
                 "Updated cover position: raw=%d mapped=%d", position, real_position
             )
+        else:
+            _LOGGER.warning("Invalid position value detected: %d", position)
+            self._current_position = None
+            self._attr_is_closed = None
         self.async_write_ha_state()
 
     async def async_open_cover(self, **kwargs: Any) -> None:
