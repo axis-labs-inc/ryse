@@ -49,13 +49,13 @@ def mock_ryse_ble_device(mock_device: MagicMock) -> Generator[MagicMock]:
         patch(
             "homeassistant.components.ryse.RyseBLEDevice",
             return_value=mock_device,
-        ),
+        ) as mock_cls,
         patch(
             "homeassistant.components.ryse.config_flow.RyseBLEDevice",
             return_value=mock_device,
         ),
     ):
-        yield mock_device
+        yield mock_cls
 
 
 @pytest.fixture

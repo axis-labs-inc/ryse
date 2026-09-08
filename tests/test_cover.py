@@ -66,7 +66,7 @@ async def test_cover_entity(
     """Test the cover entity is registered against the RYSE device."""
     entity_entry = entity_registry.async_get(ENTITY_ID)
     assert entity_entry
-    assert entity_entry.unique_id == f"{DEVICE_ADDRESS}_cover"
+    assert entity_entry.unique_id == DEVICE_ADDRESS
     assert entity_entry.device_id
 
     device_entry = device_registry.async_get(entity_entry.device_id)

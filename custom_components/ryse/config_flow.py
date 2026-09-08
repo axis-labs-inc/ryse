@@ -1,7 +1,7 @@
 """Config flow for RYSE BLE integration."""
 
 import logging
-from typing import Any
+from typing import Any, override
 
 from bleak import BleakError
 from ryseble.device import RyseBLEDevice
@@ -61,6 +61,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             await device.unpair()
         return "cannot_connect"
 
+    @override
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> ConfigFlowResult:
@@ -99,6 +100,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:

@@ -1,7 +1,7 @@
 """Support for RYSE Smart Shades via BLE."""
 
 import logging
-from typing import Any
+from typing import Any, override
 
 from bleak import BleakError
 from ryseble.device import RyseBLEDevice
@@ -46,7 +46,7 @@ class RyseCoverEntity(CoverEntity):
         """Initialize the Smart Shade cover entity."""
         self._device = device
 
-        self._attr_unique_id = f"{device.address}_cover"
+        self._attr_unique_id = device.address
         self._current_position: int | None = None
         self._attr_is_closed: bool | None = None
         self._attr_available: bool = False
@@ -56,12 +56,14 @@ class RyseCoverEntity(CoverEntity):
             connections={(CONNECTION_BLUETOOTH, self._device.address)},
         )
 
+    @override
     async def async_added_to_hass(self) -> None:
         """Run when entity is added to Home Assistant."""
         await super().async_added_to_hass()
         self._device.update_callback = self._update_position
         self.async_on_remove(self._clear_callback)
 
+    @override
     async def async_will_remove_from_hass(self) -> None:
         """Cleanup before entity removal."""
         await super().async_will_remove_from_hass()
@@ -87,6 +89,7 @@ class RyseCoverEntity(CoverEntity):
             self._attr_is_closed = None
         self.async_write_ha_state()
 
+    @override
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the shade."""
         try:
@@ -98,6 +101,7 @@ class RyseCoverEntity(CoverEntity):
         self._attr_is_closed = False
         self.async_write_ha_state()
 
+    @override
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the shade."""
         try:
@@ -109,6 +113,7 @@ class RyseCoverEntity(CoverEntity):
         self._attr_is_closed = True
         self.async_write_ha_state()
 
+    @override
     async def async_set_cover_position(self, **kwargs: Any) -> None:
         """Set the shade to a specific position."""
         ha_position = kwargs[ATTR_POSITION]
@@ -146,6 +151,7 @@ class RyseCoverEntity(CoverEntity):
             self._attr_available = False
 
     @property
+    @override
     def current_cover_position(self) -> int | None:
         """Return current cover position."""
         if self._current_position is None:
