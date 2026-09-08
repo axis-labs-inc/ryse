@@ -68,9 +68,9 @@ class RyseCoverEntity(CoverEntity):
         self._clear_callback()
 
     def _clear_callback(self) -> None:
-        """Remove callback cleanly."""
+        """Remove the notification callback so ryseble will not await it."""
         if getattr(self._device, "update_callback", None) == self._update_position:
-            self._device.update_callback = None
+            del self._device.update_callback
 
     async def _update_position(self, position: int) -> None:
         """Update cover position when receiving notification."""

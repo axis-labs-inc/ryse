@@ -315,12 +315,12 @@ async def test_notification_callback_lifecycle(
     setup_integration: MockConfigEntry,
 ) -> None:
     """Test the device notification callback is registered and removed again."""
-    assert mock_device.update_callback is not None
+    assert callable(mock_device.update_callback)
 
     await hass.config_entries.async_unload(setup_integration.entry_id)
     await hass.async_block_till_done()
 
-    assert mock_device.update_callback is None
+    assert not hasattr(mock_device, "update_callback")
 
 
 async def test_notification_callback_replaced(
