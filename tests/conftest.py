@@ -45,9 +45,15 @@ def mock_device() -> MagicMock:
 @pytest.fixture(autouse=True)
 def mock_ryse_ble_device(mock_device: MagicMock) -> Generator[MagicMock]:
     """Patch RyseBLEDevice so tests never touch real BLE hardware."""
-    with patch(
-        "homeassistant.components.ryse.RyseBLEDevice",
-        return_value=mock_device,
+    with (
+        patch(
+            "homeassistant.components.ryse.RyseBLEDevice",
+            return_value=mock_device,
+        ),
+        patch(
+            "homeassistant.components.ryse.config_flow.RyseBLEDevice",
+            return_value=mock_device,
+        ),
     ):
         yield mock_device
 
