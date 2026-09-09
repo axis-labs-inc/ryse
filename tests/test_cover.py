@@ -172,19 +172,15 @@ async def test_position_notification_out_of_range(
         "service_data",
         "method",
         "device_args",
-        "expected_state",
-        "expected_position",
     ),
     [
-        (SERVICE_OPEN_COVER, {}, "send_open", (), CoverState.OPEN, 100),
-        (SERVICE_CLOSE_COVER, {}, "send_close", (), CoverState.CLOSED, 0),
+        (SERVICE_OPEN_COVER, {}, "send_open", ()),
+        (SERVICE_CLOSE_COVER, {}, "send_close", ()),
         (
             SERVICE_SET_COVER_POSITION,
             {ATTR_POSITION: 75},
             "send_set_position",
             (25,),
-            CoverState.OPEN,
-            75,
         ),
     ],
 )
@@ -196,10 +192,10 @@ async def test_cover_services(
     service_data: dict[str, Any],
     method: str,
     device_args: tuple[int, ...],
-    expected_state: CoverState,
-    expected_position: int,
 ) -> None:
-    """Test the cover actions send a command and report the new position."""
+    """Test the cover actions send a command without optimistically updating position."""
+    initial_state = hass.states.get(ENTITY_ID)
+    
     await hass.services.async_call(
         COVER_DOMAIN,
         service,
@@ -208,10 +204,11 @@ async def test_cover_services(
     )
 
     getattr(mock_device, method).assert_awaited_once_with(*device_args)
+    
     state = hass.states.get(ENTITY_ID)
     assert state
-    assert state.state == expected_state
-    assert state.attributes[ATTR_CURRENT_POSITION] == expected_position
+    assert state.state == initial_state.state
+    assert state.attributes[ATTR_CURRENT_POSITION] == initial_state.attributes[ATTR_CURRENT_POSITION]
 
 
 @pytest.mark.parametrize(
