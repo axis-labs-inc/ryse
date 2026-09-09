@@ -9,6 +9,7 @@ import voluptuous as vol
 
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
+    async_clear_address_from_match_history,
     async_discovered_service_info,
     async_last_service_info,
 )
@@ -69,7 +70,15 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
 
-        self._discovery_info = discovery_info
+        latest = self._latest_service_info(discovery_info)
+        if not is_pairing_mode(latest.manufacturer_data):
+            # Idle shades still match the manifest; drop them here so they are
+            # not shown as unusable discoveries. Clear matcher history so a
+            # later PAIR-flag advertisement can start a new flow.
+            async_clear_address_from_match_history(self.hass, discovery_info.address)
+            return self.async_abort(reason="not_in_pairing_mode")
+
+        self._discovery_info = latest
 
         return await self.async_step_bluetooth_confirm()
 
