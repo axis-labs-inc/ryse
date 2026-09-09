@@ -5,13 +5,13 @@ from bleak.backends.device import BLEDevice
 from ryseble.device import RyseBLEDevice
 
 from homeassistant.components.bluetooth import (
-    SOURCE_LOCAL,
     BaseHaRemoteScanner,
     BluetoothCallbackMatcher,
     BluetoothChange,
     BluetoothScanningMode,
     BluetoothServiceInfoBleak,
     async_register_callback,
+    async_scanner_by_source,
     async_scanner_devices_by_address,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -72,7 +72,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
         change: BluetoothChange,
     ) -> None:
         """Refresh the BLEDevice from the local adapter only."""
-        if service_info.source != SOURCE_LOCAL:
+        scanner = async_scanner_by_source(hass, service_info.source)
+        if isinstance(scanner, BaseHaRemoteScanner):
             return
         device.set_ble_device(service_info.device)
 
