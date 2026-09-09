@@ -172,6 +172,36 @@ async def test_async_step_user_errors(
     assert result["result"].unique_id == DEVICE_ADDRESS
 
 
+async def test_async_step_user_keeps_device_after_pairing_error(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    discovery: MagicMock,
+) -> None:
+    """Test a pairing error keeps the selected device even if it leaves pairing mode."""
+    mock_device.pair.side_effect = [False, True]
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    assert result["type"] is FlowResultType.FORM
+
+    discovery.return_value = [_idle_discovery()]
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], USER_INPUT
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], USER_INPUT
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["result"].unique_id == DEVICE_ADDRESS
+
+
 @pytest.mark.usefixtures("discovery")
 async def test_async_step_user_device_added_between_steps(
     hass: HomeAssistant,

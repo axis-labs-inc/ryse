@@ -129,17 +129,18 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 return self.async_create_entry(title=service_info.name, data={})
 
-        current_ids = self._async_current_ids(include_ignore=False)
+        if user_input is None:
+            current_ids = self._async_current_ids(include_ignore=False)
 
-        # A device only sets the pairing flag in its manufacturer data while the
-        # user holds its PAIR button.
-        self._discovered_devices = {
-            info.address: info
-            for info in async_discovered_service_info(self.hass, connectable=True)
-            if info.name
-            and info.address not in current_ids
-            and is_pairing_mode(info.manufacturer_data)
-        }
+            # A device only sets the pairing flag in its manufacturer data while
+            # the user holds its PAIR button.
+            self._discovered_devices = {
+                info.address: info
+                for info in async_discovered_service_info(self.hass, connectable=True)
+                if info.name
+                and info.address not in current_ids
+                and is_pairing_mode(info.manufacturer_data)
+            }
 
         if not self._discovered_devices:
             return self.async_abort(reason="no_devices_found")
