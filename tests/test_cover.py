@@ -193,9 +193,10 @@ async def test_cover_services(
     method: str,
     device_args: tuple[int, ...],
 ) -> None:
-    """Test the cover actions send a command without optimistically updating position."""
-    initial_state = hass.states.get(ENTITY_ID)
-    
+    """Test cover actions send a command without optimistically updating state."""
+    await mock_device.update_callback(50)
+    await hass.async_block_till_done()
+
     await hass.services.async_call(
         COVER_DOMAIN,
         service,
@@ -204,11 +205,10 @@ async def test_cover_services(
     )
 
     getattr(mock_device, method).assert_awaited_once_with(*device_args)
-    
     state = hass.states.get(ENTITY_ID)
     assert state
-    assert state.state == initial_state.state
-    assert state.attributes[ATTR_CURRENT_POSITION] == initial_state.attributes[ATTR_CURRENT_POSITION]
+    assert state.state == CoverState.OPEN
+    assert state.attributes[ATTR_CURRENT_POSITION] == 50
 
 
 @pytest.mark.parametrize(
