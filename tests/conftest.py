@@ -4,9 +4,8 @@ from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unittest.mock import MagicMock, patch
-from collections.abc import Generator
 
+from homeassistant.components.bluetooth import BaseHaRemoteScanner
 from homeassistant.components.ryse.const import DOMAIN
 from homeassistant.core import HomeAssistant
 
@@ -16,14 +15,16 @@ from tests.common import MockConfigEntry
 @pytest.fixture(autouse=True)
 def mock_scanner_by_source() -> Generator[MagicMock]:
     """Mock async_scanner_by_source so the proxy tests know they are proxies."""
-    with patch(
-        "homeassistant.components.ryse.config_flow.async_scanner_by_source",
-        create=True,
-    ) as mock_flow, patch(
-        "homeassistant.components.ryse.async_scanner_by_source",
-        create=True,
-    ) as mock_init:
-        from homeassistant.components.bluetooth import BaseHaRemoteScanner
+    with (
+        patch(
+            "homeassistant.components.ryse.config_flow.async_scanner_by_source",
+            create=True,
+        ) as mock_flow,
+        patch(
+            "homeassistant.components.ryse.async_scanner_by_source",
+            create=True,
+        ) as mock_init,
+    ):
 
         def _get_scanner(hass: HomeAssistant, source: str) -> object | None:
             if source == "aa:bb:cc:dd:ee:00":

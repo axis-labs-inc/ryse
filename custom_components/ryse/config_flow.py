@@ -180,7 +180,9 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
                 for info in async_discovered_service_info(self.hass, connectable=True)
                 if info.name
                 and info.address not in current_ids
-                and not isinstance(async_scanner_by_source(self.hass, info.source), BaseHaRemoteScanner)
+                and not isinstance(
+                    async_scanner_by_source(self.hass, info.source), BaseHaRemoteScanner
+                )
                 and is_pairing_mode(info.manufacturer_data)
             }
 

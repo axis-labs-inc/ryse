@@ -11,7 +11,10 @@ from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakError
 import pytest
 
-from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
+from homeassistant.components.bluetooth import (
+    BaseHaRemoteScanner,
+    BluetoothServiceInfoBleak,
+)
 from homeassistant.components.ryse.const import DOMAIN, MANUFACTURER_ID
 from homeassistant.config_entries import SOURCE_BLUETOOTH, SOURCE_USER
 from homeassistant.const import CONF_ADDRESS
@@ -506,6 +509,44 @@ async def test_async_step_bluetooth_pairing_overrides_stale_idle(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "bluetooth_confirm"
     mock_device.pair.assert_not_called()
+
+
+async def test_async_step_bluetooth_lost_local_source(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    mock_scanner_by_source: MagicMock,
+) -> None:
+    """Test pairing is refused if the local adapter is gone, then can recover."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_BLUETOOTH},
+        data=DISCOVERY_INFO,
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "bluetooth_confirm"
+
+    mock_scanner_by_source.side_effect = lambda hass, source: MagicMock(
+        spec=BaseHaRemoteScanner
+    )
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "not_local_source"}
+    mock_device.pair.assert_not_called()
+
+    mock_scanner_by_source.side_effect = lambda hass, source: None
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["result"].unique_id == DEVICE_ADDRESS
+    mock_device.pair.assert_awaited_once()
 
 
 async def test_async_step_bluetooth_left_pairing_mode(
