@@ -38,8 +38,8 @@ being missing.
 | Home Assistant version | **2026.3 or newer.** The component uses Python 3.14 syntax, and 2026.3 is the first release that runs on Python 3.14. On older versions the component fails to load with a `SyntaxError`. |
 | Bluetooth adapter | A working Bluetooth adapter on the bridge (built-in, USB dongle, or a Bluetooth proxy is *not* enough — see the limitations below). |
 | Bluetooth integration | Home Assistant's **Bluetooth** integration must already be set up under **Settings → Devices & services**. |
-| BlueZ / `bluetoothctl` | Pairing is performed with `bluetoothctl`. It is already present on Home Assistant OS, Supervised, and the official Container image. On a Core install in a Python virtual environment, install it yourself (`sudo apt install bluez` on Debian/Ubuntu). |
-| Internet access | On first start Home Assistant downloads the `ryseble` library (version 1.9.0) from PyPI. |
+| BlueZ | Pairing uses Bleak plus a temporary BlueZ Agent1 on the Home Assistant host. BlueZ is already present on Home Assistant OS, Supervised, and the official Container image. On a Core install in a Python virtual environment, install it yourself (`sudo apt install bluez` on Debian/Ubuntu). |
+| Internet access | On first start Home Assistant downloads the `ryseble` library from PyPI. |
 | Range | Keep the shade within a few metres of the bridge while pairing. Walls and metal blinds reduce range considerably. |
 
 ---
@@ -245,7 +245,7 @@ the entry for that device.
 
 ## 7. Known limitations
 
-- The bridge needs its own Bluetooth adapter. Pairing shells out to `bluetoothctl` on the
+- The bridge needs its own Bluetooth adapter. Pairing registers a BlueZ Agent1 on the
   machine running Home Assistant, so remote Bluetooth proxies (ESPHome and similar) cannot
   be used to pair a shade.
 - A shade can only talk to one client at a time. Keep the RYSE phone app closed while
