@@ -86,6 +86,7 @@ PAIRING_ERRORS = [
     (Exception("boom"), "unexpected_error"),
     (TimeoutError("timeout"), "cannot_connect"),
     (OSError("os error"), "cannot_connect"),
+    (EOFError("eof"), "cannot_connect"),
     (BleakError("bleak error"), "cannot_connect"),
     (False, "cannot_connect"),
 ]
