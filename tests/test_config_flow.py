@@ -462,6 +462,28 @@ async def test_async_step_user_skips_proxy_source(
     assert result["reason"] == "no_devices_found"
 
 
+async def test_async_step_user_keeps_proxy_selected_when_also_local(
+    hass: HomeAssistant,
+    discovery: MagicMock,
+    mock_scanner_devices_by_address: MagicMock,
+) -> None:
+    """Test a proxy-selected advertisement is kept if a local adapter also sees it."""
+    discovery.return_value = [_proxy_discovery()]
+    local_device = BLEDevice(DEVICE_ADDRESS, DEVICE_NAME, {})
+    scanner_device = MagicMock()
+    scanner_device.scanner = MagicMock()
+    scanner_device.scanner.source = "local"
+    scanner_device.ble_device = local_device
+    mock_scanner_devices_by_address.return_value = [scanner_device]
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+
+
 async def test_async_step_bluetooth_not_in_pairing_mode(
     hass: HomeAssistant, mock_device: MagicMock
 ) -> None:
@@ -489,6 +511,30 @@ async def test_async_step_bluetooth_rejects_proxy_source(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "not_local_source"
+    mock_device.pair.assert_not_called()
+
+
+async def test_async_step_bluetooth_proxy_selected_when_also_local(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    mock_scanner_devices_by_address: MagicMock,
+) -> None:
+    """Test bluetooth discovery proceeds when a proxy wins but a local adapter sees it."""
+    local_device = BLEDevice(DEVICE_ADDRESS, DEVICE_NAME, {})
+    scanner_device = MagicMock()
+    scanner_device.scanner = MagicMock()
+    scanner_device.scanner.source = "local"
+    scanner_device.ble_device = local_device
+    mock_scanner_devices_by_address.return_value = [scanner_device]
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_BLUETOOTH},
+        data=_proxy_discovery(),
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "bluetooth_confirm"
     mock_device.pair.assert_not_called()
 
 
