@@ -65,6 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
         ) from err
 
     entry.runtime_data = device
+    entry.async_on_unload(device.unpair)
 
     @callback
     def _async_update_ble_device(
@@ -73,7 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
     ) -> None:
         """Refresh the BLEDevice from the local adapter only."""
         scanner = async_scanner_by_source(hass, service_info.source)
-        if isinstance(scanner, BaseHaRemoteScanner):
+        if scanner is None or isinstance(scanner, BaseHaRemoteScanner):
             return
         device.set_ble_device(service_info.device)
 
@@ -93,7 +94,4 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
 
 async def async_unload_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool:
     """Unload a RYSE config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        await entry.runtime_data.unpair()
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
