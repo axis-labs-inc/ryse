@@ -115,15 +115,19 @@ PAIRING_ERRORS = [
 @pytest.fixture(autouse=True)
 def mock_last_service_info() -> Generator[MagicMock]:
     """Use the stored discovery advertisement when no scanner cache is present."""
-    with (
-        patch(
-            "homeassistant.components.ryse.config_flow.async_last_service_info",
-            return_value=None,
-        ) as mock,
-        patch(
-            "homeassistant.components.ryse.config_flow.async_clear_address_from_match_history",
-        ),
-    ):
+    with patch(
+        "homeassistant.components.ryse.config_flow.async_last_service_info",
+        return_value=None,
+    ) as mock:
+        yield mock
+
+
+@pytest.fixture(autouse=True)
+def mock_clear_match_history() -> Generator[MagicMock]:
+    """Capture matcher-history clears on discovery abort."""
+    with patch(
+        "homeassistant.components.ryse.config_flow.async_clear_address_from_match_history",
+    ) as mock:
         yield mock
 
 
@@ -503,6 +507,7 @@ async def test_async_step_bluetooth_rejects_proxy_source(
     hass: HomeAssistant,
     mock_device: MagicMock,
     mock_scanner_devices_by_address: MagicMock,
+    mock_clear_match_history: MagicMock,
 ) -> None:
     """Test proxy-only discoveries are aborted before the confirmation form."""
     mock_scanner_devices_by_address.return_value = []
@@ -515,6 +520,7 @@ async def test_async_step_bluetooth_rejects_proxy_source(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "not_local_source"
     mock_device.pair.assert_not_called()
+    mock_clear_match_history.assert_called_once_with(hass, DEVICE_ADDRESS)
 
 
 async def test_async_step_bluetooth_proxy_selected_when_also_local(
@@ -640,6 +646,49 @@ async def test_async_step_bluetooth_idle_then_pair(
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "not_in_pairing_mode"
     mock_device.pair.assert_not_called()
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_BLUETOOTH},
+        data=DISCOVERY_INFO,
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "bluetooth_confirm"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["result"].unique_id == DEVICE_ADDRESS
+    mock_device.pair.assert_awaited_once()
+
+
+async def test_async_step_bluetooth_proxy_then_local(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    mock_scanner_devices_by_address: MagicMock,
+    mock_clear_match_history: MagicMock,
+) -> None:
+    """Test a proxy-only abort can be rediscovered once a local adapter sees the shade."""
+    mock_scanner_devices_by_address.return_value = []
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_BLUETOOTH},
+        data=_proxy_discovery(),
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "not_local_source"
+    mock_clear_match_history.assert_called_once_with(hass, DEVICE_ADDRESS)
+    mock_device.pair.assert_not_called()
+
+    scanner_device = MagicMock()
+    scanner_device.scanner = MagicMock()
+    scanner_device.scanner.source = "local"
+    scanner_device.ble_device = BLE_DEVICE
+    mock_scanner_devices_by_address.return_value = [scanner_device]
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN,

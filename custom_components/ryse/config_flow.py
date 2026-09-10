@@ -156,9 +156,10 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
 
         latest = self._local_service_info(discovery_info, prefer_pairing=True)
         if latest is None:
-            # Do not clear matcher history: proxy advertisements would otherwise
-            # start and abort a new flow on every packet.
+            # Match history stores advertisement fields, not scanner source.
+            # Clear it so a later local-adapter packet can start a new flow.
             await self.async_set_unique_id(None)
+            async_clear_address_from_match_history(self.hass, discovery_info.address)
             return self.async_abort(reason="not_local_source")
         if not is_pairing_mode(latest.manufacturer_data):
             # Idle shades still match the manifest; drop them here so they are
