@@ -11,10 +11,7 @@ from bleak.backends.scanner import AdvertisementData
 from bleak.exc import BleakError
 import pytest
 
-from homeassistant.components.bluetooth import (
-    BaseHaRemoteScanner,
-    BluetoothServiceInfoBleak,
-)
+from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.components.ryse.const import DOMAIN, MANUFACTURER_ID
 from homeassistant.config_entries import SOURCE_BLUETOOTH, SOURCE_USER
 from homeassistant.const import CONF_ADDRESS
@@ -449,9 +446,12 @@ async def test_async_step_user_skips_unmatched_device(
 
 
 async def test_async_step_user_skips_proxy_source(
-    hass: HomeAssistant, discovery: MagicMock
+    hass: HomeAssistant,
+    discovery: MagicMock,
+    mock_scanner_devices_by_address: MagicMock,
 ) -> None:
     """Test that we skip devices seen only through a Bluetooth proxy."""
+    mock_scanner_devices_by_address.return_value = []
     discovery.return_value = [_proxy_discovery()]
 
     result = await hass.config_entries.flow.async_init(
@@ -500,9 +500,12 @@ async def test_async_step_bluetooth_not_in_pairing_mode(
 
 
 async def test_async_step_bluetooth_rejects_proxy_source(
-    hass: HomeAssistant, mock_device: MagicMock
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    mock_scanner_devices_by_address: MagicMock,
 ) -> None:
     """Test proxy-only discoveries are aborted before the confirmation form."""
+    mock_scanner_devices_by_address.return_value = []
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
         context={"source": SOURCE_BLUETOOTH},
@@ -560,7 +563,7 @@ async def test_async_step_bluetooth_pairing_overrides_stale_idle(
 async def test_async_step_bluetooth_lost_local_source(
     hass: HomeAssistant,
     mock_device: MagicMock,
-    mock_scanner_by_source: MagicMock,
+    mock_scanner_devices_by_address: MagicMock,
 ) -> None:
     """Test pairing is refused if the local adapter is gone, then can recover."""
     result = await hass.config_entries.flow.async_init(
@@ -572,9 +575,7 @@ async def test_async_step_bluetooth_lost_local_source(
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "bluetooth_confirm"
 
-    mock_scanner_by_source.side_effect = lambda hass, source: MagicMock(
-        spec=BaseHaRemoteScanner
-    )
+    mock_scanner_devices_by_address.return_value = []
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={}
@@ -584,7 +585,11 @@ async def test_async_step_bluetooth_lost_local_source(
     assert result["errors"] == {"base": "not_local_source"}
     mock_device.pair.assert_not_called()
 
-    mock_scanner_by_source.side_effect = lambda hass, source: MagicMock()
+    scanner_device = MagicMock()
+    scanner_device.scanner = MagicMock()
+    scanner_device.scanner.source = "local"
+    scanner_device.ble_device = BLE_DEVICE
+    mock_scanner_devices_by_address.return_value = [scanner_device]
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input={}
