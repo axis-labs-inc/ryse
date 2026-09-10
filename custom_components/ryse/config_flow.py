@@ -44,9 +44,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             return service_info
         return latest
 
-    def _local_scanner_devices(
-        self, address: str
-    ) -> list[BluetoothScannerDevice]:
+    def _local_scanner_devices(self, address: str) -> list[BluetoothScannerDevice]:
         """Return local-adapter scanner devices for *address*, ignoring proxies."""
         return [
             scanner_device
@@ -136,7 +134,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             if await device.pair():
                 return None
-        except (TimeoutError, OSError, EOFError, BleakError):
+        except TimeoutError, OSError, EOFError, BleakError:
             _LOGGER.error("Connection error during pairing")
             return "cannot_connect"
         except Exception:
