@@ -15,16 +15,10 @@ from tests.common import MockConfigEntry
 @pytest.fixture(autouse=True)
 def mock_scanner_by_source() -> Generator[MagicMock]:
     """Mock async_scanner_by_source so the proxy tests know they are proxies."""
-    with (
-        patch(
-            "homeassistant.components.ryse.config_flow.async_scanner_by_source",
-            create=True,
-        ) as mock_flow,
-        patch(
-            "homeassistant.components.ryse.async_scanner_by_source",
-            create=True,
-        ) as mock_init,
-    ):
+    with patch(
+        "homeassistant.components.ryse.config_flow.async_scanner_by_source",
+        create=True,
+    ) as mock_flow:
 
         def _get_scanner(hass: HomeAssistant, source: str) -> object | None:
             if source == "aa:bb:cc:dd:ee:00":
@@ -34,7 +28,6 @@ def mock_scanner_by_source() -> Generator[MagicMock]:
             return None
 
         mock_flow.side_effect = _get_scanner
-        mock_init.side_effect = _get_scanner
         yield mock_flow
 
 
