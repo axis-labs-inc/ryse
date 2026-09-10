@@ -113,21 +113,22 @@ The following video shows how to pair a RYSE BLE device with Home Assistant:
 
 ### 3.1 Put the shade in pairing mode
 
-**Press the PAIR button on the RYSE shade.**
+**Press the PAIR button on the RYSE shade** before you select **Submit**.
 
-This is not optional. The shade only advertises itself as "ready to pair" for a short
-time after the button is pressed, and Home Assistant deliberately ignores RYSE devices
-that are not in pairing mode. If you take too long, just press the button again.
+The shade only accepts a new bond for a short time after the button is pressed. A
+nearby shade can appear under *Discovered* even before that; pairing still fails
+until you press PAIR. The **Add integration** picker only lists shades that are
+currently in pairing mode. If you take too long, press the button again.
 
 ### 3.2a Pair from the discovery notification (usual case)
 
-A shade in pairing mode is normally picked up automatically:
+A nearby shade is normally picked up automatically:
 
 1. Go to **Settings → Devices & services**.
 2. A **RYSE** card appears under *Discovered* with the name of your shade.
 3. Select **Configure**.
-4. The dialog *Pair your RYSE device* asks you to press the PAIR button. Press it if
-   the shade has fallen out of pairing mode, then select **Submit**.
+4. The dialog *Pair your RYSE device* asks you to press the PAIR button. Press it,
+   then select **Submit**.
 5. Wait for pairing to finish and select **Finish**.
 
 ### 3.2b Add the device manually
