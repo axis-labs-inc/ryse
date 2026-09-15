@@ -116,6 +116,9 @@ HomeKit pairing, then set the bridge up again on the network.
 
 ## 5. Pair the SmartBridge in Home Assistant
 
+Watch a walkthrough of pairing the RYSE SmartBridge to Home Assistant via HomeKit:
+[Pair RYSE SmartBridge to Home Assistant (YouTube)](https://youtu.be/R7NH7wkeWaI).
+
 ### 5.1 Discovery (usual case)
 
 1. Go to **Settings → Devices & services**.
