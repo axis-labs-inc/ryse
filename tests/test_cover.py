@@ -363,7 +363,7 @@ async def test_notification_callback_lifecycle(
     await hass.config_entries.async_unload(setup_integration.entry_id)
     await hass.async_block_till_done()
 
-    assert not hasattr(mock_device, "update_callback")
+    assert mock_device.update_callback is None
 
 
 async def test_notification_callback_replaced(

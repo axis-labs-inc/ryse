@@ -63,16 +63,10 @@ class RyseCoverEntity(CoverEntity):
         self._device.update_callback = self._update_position
         self.async_on_remove(self._clear_callback)
 
-    @override
-    async def async_will_remove_from_hass(self) -> None:
-        """Cleanup before entity removal."""
-        await super().async_will_remove_from_hass()
-        self._clear_callback()
-
     def _clear_callback(self) -> None:
         """Remove the notification callback so ryseble will not await it."""
-        if getattr(self._device, "update_callback", None) == self._update_position:
-            del self._device.update_callback
+        if self._device.update_callback == self._update_position:
+            self._device.update_callback = None
 
     async def _update_position(self, position: int) -> None:
         """Update cover position when receiving notification."""
