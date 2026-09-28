@@ -49,7 +49,7 @@ class RyseCoverEntity(CoverEntity):
         self._attr_unique_id = device.address
         self._current_position: int | None = None
         self._attr_is_closed: bool | None = None
-        self._attr_available: bool = False
+        self._attr_available = True
         self._attr_device_info = DeviceInfo(
             manufacturer="RYSE",
             model="SmartShade BLE",
@@ -62,6 +62,12 @@ class RyseCoverEntity(CoverEntity):
         await super().async_added_to_hass()
         self._device.update_callback = self._update_position
         self.async_on_remove(self._clear_callback)
+        client = self._device.client
+        if client and client.is_connected:
+            try:
+                await self._device.send_get_position()
+            except (TimeoutError, OSError, EOFError, BleakError) as err:
+                _LOGGER.debug("Could not request initial cover position: %s", err)
 
     def _clear_callback(self) -> None:
         """Remove the notification callback so ryseble will not await it."""

@@ -84,16 +84,18 @@ async def test_cover_entity(
     )
 
 
-async def test_cover_unavailable_until_first_poll(
+async def test_cover_available_after_setup(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
     mock_device: MagicMock,
     setup_integration: MockConfigEntry,
 ) -> None:
-    """Test the cover stays unavailable until the device has been polled."""
+    """Test the cover is available after pairing, before the first poll."""
     state = hass.states.get(ENTITY_ID)
     assert state
-    assert state.state == STATE_UNAVAILABLE
+    assert state.state == STATE_UNKNOWN
+    assert state.attributes.get(ATTR_CURRENT_POSITION) is None
+    mock_device.send_get_position.assert_not_awaited()
 
     await async_poll_device(hass, freezer)
 
@@ -102,6 +104,25 @@ async def test_cover_unavailable_until_first_poll(
     assert state.state == STATE_UNKNOWN
     assert state.attributes.get(ATTR_CURRENT_POSITION) is None
     mock_device.send_get_position.assert_awaited_once()
+
+
+async def test_cover_requests_position_when_already_connected(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_ble_device_from_address: MagicMock,
+    mock_device: MagicMock,
+) -> None:
+    """Test a connected device is asked for position as soon as the cover is added."""
+    mock_device.client = MagicMock(is_connected=True)
+    mock_config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    mock_device.send_get_position.assert_awaited_once()
+    state = hass.states.get(ENTITY_ID)
+    assert state
+    assert state.state == STATE_UNKNOWN
+    assert state.attributes.get(ATTR_CURRENT_POSITION) is None
 
 
 async def test_cover_polls_connected_device_without_pairing(
