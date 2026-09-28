@@ -137,12 +137,4 @@ class RyseCoverEntity(CoverEntity):
     @override
     def current_cover_position(self) -> int | None:
         """Return current cover position."""
-        if self._current_position is None:
-            return None
-        if not self._device.is_valid_position(self._current_position):
-            _LOGGER.warning(
-                "Invalid position value detected: %d",
-                self._current_position,
-            )
-            return None
         return self._current_position
