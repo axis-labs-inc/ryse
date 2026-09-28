@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from bleak import BleakError
+import pytest
 
 from homeassistant.components.bluetooth import BaseHaRemoteScanner
 from homeassistant.config_entries import ConfigEntryState
@@ -89,6 +90,31 @@ async def test_setup_retries_on_ble_error(
 ) -> None:
     """Test setup is retried when pairing raises a BLE error."""
     mock_device.pair.side_effect = BleakError("ble err")
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    mock_device.unpair.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "pair_side_effect",
+    [
+        pytest.param(False, id="pair_returns_false"),
+        pytest.param(BleakError("ble err"), id="pair_raises"),
+    ],
+)
+@pytest.mark.usefixtures("mock_ble_device_from_address")
+async def test_setup_retries_when_unpair_fails(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_device: MagicMock,
+    pair_side_effect: bool | BleakError,
+) -> None:
+    """Test setup is retried even if releasing the connection after a failed pair raises."""
+    mock_device.pair.side_effect = pair_side_effect
+    mock_device.unpair.side_effect = BleakError("unpair err")
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()

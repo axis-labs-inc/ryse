@@ -27,6 +27,7 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant, callback
 
+from . import _async_unpair
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -183,14 +184,14 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             if await device.pair():
                 return None
-        except TimeoutError, OSError, EOFError, BleakError:
+        except (TimeoutError, OSError, EOFError, BleakError):
             _LOGGER.error("Connection error during pairing")
             return "cannot_connect"
         except Exception:
             _LOGGER.exception("Unexpected error during pairing")
             return "unexpected_error"
         finally:
-            await device.unpair()
+            await _async_unpair(device)
         return "cannot_connect"
 
     @override

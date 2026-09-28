@@ -1,5 +1,7 @@
 """The RYSE integration."""
 
+import logging
+
 from bleak import BleakError
 from bleak.backends.device import BLEDevice
 from ryseble.device import RyseBLEDevice
@@ -18,9 +20,19 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 
+_LOGGER = logging.getLogger(__name__)
+
 type RyseConfigEntry = ConfigEntry[RyseBLEDevice]
 
 PLATFORMS = [Platform.COVER]
+
+
+async def _async_unpair(device: RyseBLEDevice) -> None:
+    """Release the BLE connection, ignoring expected disconnect errors."""
+    try:
+        await device.unpair()
+    except (TimeoutError, OSError, EOFError, BleakError):
+        _LOGGER.debug("Error while releasing RYSE connection", exc_info=True)
 
 
 def _async_local_ble_device(hass: HomeAssistant, address: str) -> BLEDevice | None:
@@ -53,12 +65,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
     device = RyseBLEDevice(ble_device)
     try:
         if not await device.pair():
-            await device.unpair()
+            await _async_unpair(device)
             raise ConfigEntryNotReady(
                 f"Could not connect to RYSE device with address {address}"
             )
     except (TimeoutError, OSError, EOFError, BleakError) as err:
-        await device.unpair()
+        await _async_unpair(device)
         raise ConfigEntryNotReady(
             f"Could not connect to RYSE device with address {address}"
         ) from err
