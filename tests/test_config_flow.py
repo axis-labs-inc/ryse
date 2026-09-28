@@ -14,7 +14,7 @@ import pytest
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.components.ryse.const import DOMAIN, MANUFACTURER_ID
 from homeassistant.config_entries import SOURCE_BLUETOOTH, SOURCE_USER
-from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
@@ -586,6 +586,30 @@ async def test_async_step_bluetooth_rejects_proxy_source(
     mock_rediscover_address.assert_not_called()
     mock_register_callback.assert_called_once()
     assert mock_register_callback.call_args.args[2]["address"] == DEVICE_ADDRESS
+    assert DEVICE_ADDRESS in hass.data[DOMAIN]
+
+
+async def test_proxy_local_waiter_unsubscribes_on_hass_stop(
+    hass: HomeAssistant,
+    mock_scanner_devices_by_address: MagicMock,
+    mock_register_callback: MagicMock,
+) -> None:
+    """Test leftover proxy waiters are released when Home Assistant stops."""
+    mock_scanner_devices_by_address.return_value = []
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_BLUETOOTH},
+        data=_proxy_discovery(),
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    unsub = hass.data[DOMAIN][DEVICE_ADDRESS]
+
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+    await hass.async_block_till_done()
+
+    unsub.assert_called_once()
+    assert DEVICE_ADDRESS not in hass.data[DOMAIN]
 
 
 async def test_async_step_bluetooth_proxy_selected_when_also_local(
@@ -790,6 +814,8 @@ async def test_async_step_bluetooth_proxy_then_local(
     mock_scanner_devices_by_address.return_value = [scanner_device]
     on_advertisement(DISCOVERY_INFO, MagicMock())
     mock_rediscover_address.assert_called_once_with(hass, DEVICE_ADDRESS)
+    mock_register_callback.return_value.assert_called_once()
+    assert DEVICE_ADDRESS not in hass.data.get(DOMAIN, {})
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN,

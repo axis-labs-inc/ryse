@@ -1,6 +1,5 @@
 """Config flow for RYSE BLE integration."""
 
-from collections.abc import Callable
 import logging
 from typing import Any, override
 
@@ -24,16 +23,13 @@ from homeassistant.components.bluetooth import (
     async_scanner_devices_by_address,
 )
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
-from homeassistant.const import CONF_ADDRESS
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STOP
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 
 from . import _async_unpair
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
-# Addresses waiting for a local adapter after a proxy-only discovery abort.
-_remove_local_waiters: dict[str, Callable[[], None]] = {}
 
 
 def _local_scanner_devices(
@@ -49,10 +45,30 @@ def _local_scanner_devices(
     ]
 
 
+def _async_local_waiters(hass: HomeAssistant) -> dict[str, CALLBACK_TYPE]:
+    """Return per-hass waiter unsubs, creating the store on first use."""
+    waiters: dict[str, CALLBACK_TYPE] | None = hass.data.get(DOMAIN)
+    if waiters is None:
+        waiters = {}
+        hass.data[DOMAIN] = waiters
+
+        @callback
+        def _async_unsubscribe_waiters(_event: Event) -> None:
+            while waiters:
+                _, unsub = waiters.popitem()
+                unsub()
+
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_unsubscribe_waiters)
+    return waiters
+
+
 @callback
-def _async_cancel_local_waiter(address: str) -> None:
+def _async_cancel_local_waiter(hass: HomeAssistant, address: str) -> None:
     """Stop watching *address* for a local adapter."""
-    if unsub := _remove_local_waiters.pop(address, None):
+    waiters: dict[str, CALLBACK_TYPE] | None = hass.data.get(DOMAIN)
+    if not waiters:
+        return
+    if unsub := waiters.pop(address, None):
         unsub()
 
 
@@ -64,7 +80,7 @@ def _async_watch_for_local_route(hass: HomeAssistant, address: str) -> None:
     aborting flows. Rediscovery runs only after a local scanner sees the
     address.
     """
-    _async_cancel_local_waiter(address)
+    _async_cancel_local_waiter(hass, address)
 
     @callback
     def _async_on_advertisement(
@@ -73,10 +89,10 @@ def _async_watch_for_local_route(hass: HomeAssistant, address: str) -> None:
     ) -> None:
         if not _local_scanner_devices(hass, address):
             return
-        _async_cancel_local_waiter(address)
+        _async_cancel_local_waiter(hass, address)
         async_rediscover_address(hass, address)
 
-    _remove_local_waiters[address] = async_register_callback(
+    _async_local_waiters(hass)[address] = async_register_callback(
         hass,
         _async_on_advertisement,
         BluetoothCallbackMatcher(address=address, connectable=True),
@@ -209,7 +225,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(None)
             _async_watch_for_local_route(self.hass, discovery_info.address)
             return self.async_abort(reason="not_local_source")
-        _async_cancel_local_waiter(discovery_info.address)
+        _async_cancel_local_waiter(self.hass, discovery_info.address)
         if not is_pairing_mode(latest.manufacturer_data):
             # Idle shades still match the manifest; drop them here so they are
             # not shown as unusable discoveries. Clear matcher history so a
