@@ -91,6 +91,17 @@ class RyseCoverEntity(CoverEntity):
             _LOGGER.info("%s became unavailable: %s", self.entity_id, reason)
         self._attr_available = available
 
+    def _clear_cached_position(self) -> None:
+        """Drop cached cover state so a later poll will request a fresh position."""
+        self._current_position = None
+        self._attr_is_closed = None
+
+    def _cached_position_is_valid(self) -> bool:
+        """Return True when the cached Home Assistant position is still usable."""
+        return self._current_position is not None and self._device.is_valid_position(
+            self._current_position
+        )
+
     async def _update_position(self, position: int) -> None:
         """Update cover position when receiving notification."""
         if self._device.is_valid_position(position):
@@ -103,8 +114,7 @@ class RyseCoverEntity(CoverEntity):
             )
         else:
             _LOGGER.warning("Invalid position value detected: %d", position)
-            self._current_position = None
-            self._attr_is_closed = None
+            self._clear_cached_position()
         self.async_write_ha_state()
 
     @override
@@ -142,6 +152,12 @@ class RyseCoverEntity(CoverEntity):
                 if not paired:
                     self._set_available(False, "failed to pair")
                     return
+
+            if (
+                self._current_position is not None
+                and not self._cached_position_is_valid()
+            ):
+                self._clear_cached_position()
 
             if paired or self._current_position is None:
                 await self._device.send_get_position()

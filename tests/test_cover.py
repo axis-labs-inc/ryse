@@ -189,6 +189,55 @@ async def test_position_notification_out_of_range(
     assert "Invalid position value detected: 150" in caplog.text
 
 
+async def test_poll_skips_get_position_when_cached(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    mock_device: MagicMock,
+    polled_cover: MockConfigEntry,
+) -> None:
+    """Test polling does not request position again when a valid cache exists."""
+    await mock_device.update_callback(100)
+    await hass.async_block_till_done()
+    mock_device.client = MagicMock(is_connected=True)
+    mock_device.send_get_position.reset_mock()
+
+    await async_poll_device(hass, freezer)
+
+    mock_device.send_get_position.assert_not_awaited()
+    state = hass.states.get(ENTITY_ID)
+    assert state
+    assert state.state == CoverState.CLOSED
+    assert state.attributes[ATTR_CURRENT_POSITION] == 0
+
+
+async def test_poll_refreshes_invalid_cached_position(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    mock_device: MagicMock,
+    polled_cover: MockConfigEntry,
+) -> None:
+    """Test polling clears a cached position that later fails validation."""
+    await mock_device.update_callback(100)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(ENTITY_ID)
+    assert state
+    assert state.state == CoverState.CLOSED
+    assert state.attributes[ATTR_CURRENT_POSITION] == 0
+
+    mock_device.client = MagicMock(is_connected=True)
+    mock_device.send_get_position.reset_mock()
+    mock_device.is_valid_position.return_value = False
+
+    await async_poll_device(hass, freezer)
+
+    mock_device.send_get_position.assert_awaited_once()
+    state = hass.states.get(ENTITY_ID)
+    assert state
+    assert state.state == STATE_UNKNOWN
+    assert state.attributes.get(ATTR_CURRENT_POSITION) is None
+
+
 @pytest.mark.parametrize(
     (
         "service",
