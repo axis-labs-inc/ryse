@@ -50,6 +50,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
     address = entry.unique_id
     assert address is not None
 
+    from .config_flow import _async_cancel_local_waiter
+
+    _async_cancel_local_waiter(hass, address)
+
     ble_device = _async_local_ble_device(hass, address)
     if not ble_device:
         raise ConfigEntryNotReady(

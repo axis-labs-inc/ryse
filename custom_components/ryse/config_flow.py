@@ -25,7 +25,7 @@ from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 
 from . import _async_unpair
-from .const import DOMAIN, MANUFACTURER_ID, SERVICE_UUID
+from .const import DATA_LOCAL_WAITERS, DOMAIN, MANUFACTURER_ID, SERVICE_UUID
 from .helpers import async_local_scanner_devices
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,10 +41,10 @@ def _is_ryse_advertisement(info: BluetoothServiceInfoBleak) -> bool:
 
 def _async_local_waiters(hass: HomeAssistant) -> dict[str, CALLBACK_TYPE]:
     """Return per-hass waiter unsubs, creating the store on first use."""
-    waiters: dict[str, CALLBACK_TYPE] | None = hass.data.get(DOMAIN)
+    waiters = hass.data.get(DATA_LOCAL_WAITERS)
     if waiters is None:
         waiters = {}
-        hass.data[DOMAIN] = waiters
+        hass.data[DATA_LOCAL_WAITERS] = waiters
 
         @callback
         def _async_unsubscribe_waiters(_event: Event) -> None:
@@ -59,7 +59,7 @@ def _async_local_waiters(hass: HomeAssistant) -> dict[str, CALLBACK_TYPE]:
 @callback
 def _async_cancel_local_waiter(hass: HomeAssistant, address: str) -> None:
     """Stop watching *address* for a local adapter."""
-    waiters: dict[str, CALLBACK_TYPE] | None = hass.data.get(DOMAIN)
+    waiters = hass.data.get(DATA_LOCAL_WAITERS)
     if not waiters:
         return
     if unsub := waiters.pop(address, None):
@@ -211,6 +211,10 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle bluetooth discovery step."""
         await self.async_set_unique_id(discovery_info.address)
+        if self.hass.config_entries.async_entry_for_domain_unique_id(
+            DOMAIN, discovery_info.address
+        ):
+            _async_cancel_local_waiter(self.hass, discovery_info.address)
         self._abort_if_unique_id_configured()
 
         latest = self._local_service_info(discovery_info, prefer_pairing=True)
@@ -233,6 +237,14 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return await self.async_step_bluetooth_confirm()
 
+    @override
+    async def async_step_ignore(
+        self, user_input: dict[str, Any]
+    ) -> ConfigFlowResult:
+        """Ignore a discovered shade and drop any leftover local-adapter waiter."""
+        _async_cancel_local_waiter(self.hass, user_input["unique_id"])
+        return await super().async_step_ignore(user_input)
+
     async def async_step_bluetooth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -247,6 +259,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             if error := await self._async_pair(discovery_info):
                 errors["base"] = error
             else:
+                _async_cancel_local_waiter(self.hass, discovery_info.address)
                 return self.async_create_entry(
                     title=name,
                     data={},
@@ -278,6 +291,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             if error := await self._async_pair(service_info):
                 errors["base"] = error
             else:
+                _async_cancel_local_waiter(self.hass, address)
                 return self.async_create_entry(title=service_info.name, data={})
 
         if user_input is None:
