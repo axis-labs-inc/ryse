@@ -1,12 +1,13 @@
 """Tests for RYSE init setup."""
 
+import logging
 from unittest.mock import MagicMock
 
 from bleak import BleakError
 from bleak.backends.device import BLEDevice
 import pytest
 
-from homeassistant.components.ryse.const import DATA_LOCAL_WAITERS
+from homeassistant.components.ryse.const import DATA_LOCAL_WAITERS, SERVICE_UUID
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
@@ -178,6 +179,61 @@ async def test_ble_device_callback_keeps_local_route(
         await hass.async_block_till_done()
         mock_device.set_ble_device.assert_called_with(local_ble_device)
     finally:
+        cancel_remote()
+
+
+async def test_ble_device_callback_logs_lost_and_restored_local_route(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    local_ble_device: BLEDevice,
+    mock_device: MagicMock,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test the BLEDevice callback logs once when the local adapter route is lost and restored."""
+    advertisement = make_advertisement()
+    cancel_local = register_local_scanner(hass, local_ble_device, advertisement)
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert mock_config_entry.state is ConfigEntryState.LOADED
+
+    remote, cancel_remote = register_remote_scanner(hass)
+    try:
+        cancel_local()
+        with caplog.at_level(logging.INFO, logger="homeassistant.components.ryse"):
+            remote.inject_advertisement(
+                local_ble_device,
+                make_advertisement(service_data={SERVICE_UUID: b"\x01"}),
+            )
+            await hass.async_block_till_done()
+            remote.inject_advertisement(
+                local_ble_device,
+                make_advertisement(service_data={SERVICE_UUID: b"\x02"}),
+            )
+            await hass.async_block_till_done()
+
+            lost = (
+                f"No local Bluetooth adapter currently sees {DEVICE_ADDRESS}; "
+                "commands require a local adapter, not a proxy"
+            )
+            assert caplog.text.count(lost) == 1
+            mock_device.set_ble_device.assert_not_called()
+
+            cancel_local = register_local_scanner(
+                hass, local_ble_device, advertisement
+            )
+            remote.inject_advertisement(
+                local_ble_device,
+                make_advertisement(service_data={SERVICE_UUID: b"\x03"}),
+            )
+            await hass.async_block_till_done()
+            restored = (
+                f"{DEVICE_ADDRESS} is visible on a local Bluetooth adapter again"
+            )
+            assert caplog.text.count(restored) == 1
+            mock_device.set_ble_device.assert_called_with(local_ble_device)
+    finally:
+        cancel_local()
         cancel_remote()
 
 

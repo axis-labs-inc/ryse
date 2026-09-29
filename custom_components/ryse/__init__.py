@@ -77,6 +77,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
     entry.runtime_data = device
     entry.async_on_unload(device.unpair)
 
+    missing_local_route = False
+
     @callback
     def _async_update_ble_device(
         service_info: BluetoothServiceInfoBleak,
@@ -87,9 +89,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
         Local adapters set ``service_info.source`` to the adapter MAC, not
         ``SOURCE_LOCAL``. Resolve via scanners that currently see the address.
         """
+        nonlocal missing_local_route
         ble_device = _async_local_ble_device(hass, service_info.address)
         if ble_device is None:
+            if not missing_local_route:
+                _LOGGER.info(
+                    "No local Bluetooth adapter currently sees %s; "
+                    "commands require a local adapter, not a proxy",
+                    service_info.address,
+                )
+                missing_local_route = True
             return
+        if missing_local_route:
+            _LOGGER.info(
+                "%s is visible on a local Bluetooth adapter again",
+                service_info.address,
+            )
+            missing_local_route = False
         device.set_ble_device(ble_device)
 
     entry.async_on_unload(
