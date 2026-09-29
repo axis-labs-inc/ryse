@@ -102,19 +102,27 @@ async def test_setup_retries_on_ble_error(
         pytest.param(BleakError("ble err"), id="pair_raises"),
     ],
 )
+@pytest.mark.parametrize(
+    "unpair_side_effect",
+    [
+        pytest.param(BleakError("unpair err"), id="unpair_bleak"),
+        pytest.param(RuntimeError("unpair err"), id="unpair_unexpected"),
+    ],
+)
 @pytest.mark.usefixtures("local_ryse_scanner")
 async def test_setup_retries_when_unpair_fails(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_device: MagicMock,
     pair_side_effect: bool | BleakError,
+    unpair_side_effect: Exception,
 ) -> None:
     """Test setup is retried even if releasing the connection after a failed pair raises."""
     if pair_side_effect is False:
         mock_device.pair.return_value = False
     else:
         mock_device.pair.side_effect = pair_side_effect
-    mock_device.unpair.side_effect = BleakError("unpair err")
+    mock_device.unpair.side_effect = unpair_side_effect
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()

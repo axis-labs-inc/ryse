@@ -28,10 +28,14 @@ PLATFORMS = [Platform.COVER]
 
 
 async def _async_unpair(device: RyseBLEDevice) -> None:
-    """Release the BLE connection, ignoring expected disconnect errors."""
+    """Release the BLE connection, ignoring teardown errors.
+
+    Teardown must not replace a pairing/setup failure: the BLE link is often
+    already gone, and the original error is what setup should retry on.
+    """
     try:
         await device.unpair()
-    except (TimeoutError, OSError, EOFError, BleakError):
+    except Exception:
         _LOGGER.debug("Error while releasing RYSE connection", exc_info=True)
 
 
