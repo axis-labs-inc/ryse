@@ -11,7 +11,7 @@ import pytest
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.components.ryse.const import DATA_LOCAL_WAITERS, DOMAIN, SERVICE_UUID
 from homeassistant.config_entries import SOURCE_BLUETOOTH, SOURCE_IGNORE, SOURCE_USER
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
@@ -92,6 +92,9 @@ async def test_async_step_user_success(
         DOMAIN, context={"source": SOURCE_USER}
     )
     assert result["type"] is FlowResultType.FORM
+    assert result["data_schema"].schema[CONF_ADDRESS].container == {
+        DEVICE_ADDRESS: f"{DEVICE_NAME} ({DEVICE_ADDRESS})",
+    }
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], USER_INPUT

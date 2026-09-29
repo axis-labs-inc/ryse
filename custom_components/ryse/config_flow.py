@@ -327,7 +327,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     probatio.Required(CONF_ADDRESS): probatio.In(
                         {
-                            address: info.name
+                            address: f"{info.name} ({address})"
                             for address, info in self._discovered_devices.items()
                         }
                     ),
