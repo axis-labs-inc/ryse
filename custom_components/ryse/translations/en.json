@@ -6,8 +6,7 @@
                 "description": "Please click Submit to start pairing",
                 "data": {
                     "device_address": "RYSE devices"
-                },
-                "submit": "Submit"
+                }
             },
             "bluetooth_confirm": {
                 "title": "Pair your RYSE device",
