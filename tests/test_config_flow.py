@@ -12,7 +12,7 @@ from bleak.exc import BleakError
 import pytest
 
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
-from homeassistant.components.ryse.const import DOMAIN, MANUFACTURER_ID
+from homeassistant.components.ryse.const import DOMAIN, MANUFACTURER_ID, SERVICE_UUID
 from homeassistant.config_entries import SOURCE_BLUETOOTH, SOURCE_USER
 from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import HomeAssistant
@@ -30,7 +30,7 @@ ADVERTISEMENT_DATA = AdvertisementData(
     local_name=DEVICE_NAME,
     manufacturer_data=PAIRING_MANUFACTURER_DATA,
     service_data={},
-    service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+    service_uuids=[SERVICE_UUID],
     rssi=RSSI_VALUE,
     tx_power=None,
     platform_data=(),
@@ -44,7 +44,7 @@ DISCOVERY_INFO = BluetoothServiceInfoBleak(
     rssi=-40,
     manufacturer_data=PAIRING_MANUFACTURER_DATA,
     service_data={},
-    service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+    service_uuids=[SERVICE_UUID],
     source="local",
     device=BLE_DEVICE,
     advertisement=ADVERTISEMENT_DATA,
@@ -63,14 +63,14 @@ def _idle_discovery() -> BluetoothServiceInfoBleak:
         rssi=-40,
         manufacturer_data=IDLE_MANUFACTURER_DATA,
         service_data={},
-        service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+        service_uuids=[SERVICE_UUID],
         source="local",
         device=idle_device,
         advertisement=AdvertisementData(
             local_name=DEVICE_NAME,
             manufacturer_data=IDLE_MANUFACTURER_DATA,
             service_data={},
-            service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+            service_uuids=[SERVICE_UUID],
             rssi=RSSI_VALUE,
             tx_power=None,
             platform_data=(),
@@ -90,7 +90,7 @@ def _proxy_discovery() -> BluetoothServiceInfoBleak:
         rssi=-40,
         manufacturer_data=PAIRING_MANUFACTURER_DATA,
         service_data={},
-        service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+        service_uuids=[SERVICE_UUID],
         source="aa:bb:cc:dd:ee:00",
         device=proxy_device,
         advertisement=ADVERTISEMENT_DATA,
@@ -430,7 +430,7 @@ async def test_async_step_user_skips_nameless_device(
         rssi=-40,
         manufacturer_data=PAIRING_MANUFACTURER_DATA,
         service_data={},
-        service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+        service_uuids=[SERVICE_UUID],
         source="local",
         device=nameless_device,
         advertisement=ADVERTISEMENT_DATA,
@@ -466,7 +466,7 @@ async def test_async_step_user_skips_non_pairing_device(
 async def test_async_step_user_skips_unmatched_device(
     hass: HomeAssistant, discovery: MagicMock
 ) -> None:
-    """Test that we skip devices that do not match RYSE pairing advertisements."""
+    """Test that we skip devices that are not RYSE advertisements."""
     ble_device = BLEDevice(DEVICE_ADDRESS, "Generic Device", {})
     unmatched_discovery = BluetoothServiceInfoBleak(
         name="Generic Device",
@@ -846,7 +846,7 @@ async def test_async_step_bluetooth_fallback_name(
         rssi=-40,
         manufacturer_data=PAIRING_MANUFACTURER_DATA,
         service_data={},
-        service_uuids=["a72f2800-b0bd-498b-b4cd-4a3901388238"],
+        service_uuids=[SERVICE_UUID],
         source="local",
         device=nameless_device,
         advertisement=ADVERTISEMENT_DATA,

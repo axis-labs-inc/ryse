@@ -17,6 +17,7 @@ from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceIn
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import RyseConfigEntry
+from .const import MANUFACTURER_NAME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ class RyseCoverEntity(CoverEntity):
         self._attr_is_closed: bool | None = None
         self._attr_available = True
         self._attr_device_info = DeviceInfo(
-            manufacturer="RYSE",
+            manufacturer=MANUFACTURER_NAME,
             model="SmartShade BLE",
             connections={(CONNECTION_BLUETOOTH, self._device.address)},
         )

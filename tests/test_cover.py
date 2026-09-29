@@ -16,6 +16,7 @@ from homeassistant.components.cover import (
     CoverEntityFeature,
     CoverState,
 )
+from homeassistant.components.ryse.const import MANUFACTURER_NAME
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_SUPPORTED_FEATURES,
@@ -71,7 +72,7 @@ async def test_cover_entity(
 
     device_entry = device_registry.async_get(entity_entry.device_id)
     assert device_entry
-    assert device_entry.manufacturer == "RYSE"
+    assert device_entry.manufacturer == MANUFACTURER_NAME
     assert device_entry.model == "SmartShade BLE"
     assert (dr.CONNECTION_BLUETOOTH, DEVICE_ADDRESS) in device_entry.connections
 

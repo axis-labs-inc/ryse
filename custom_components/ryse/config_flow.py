@@ -27,7 +27,7 @@ from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 
 from . import _async_unpair
-from .const import DOMAIN
+from .const import DOMAIN, MANUFACTURER_ID, SERVICE_UUID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +43,14 @@ def _local_scanner_devices(
         )
         if not isinstance(scanner_device.scanner, BaseHaRemoteScanner)
     ]
+
+
+def _is_ryse_advertisement(info: BluetoothServiceInfoBleak) -> bool:
+    """Return True if *info* matches a RYSE shade."""
+    return (
+        MANUFACTURER_ID in info.manufacturer_data
+        or SERVICE_UUID in info.service_uuids
+    )
 
 
 def _async_local_waiters(hass: HomeAssistant) -> dict[str, CALLBACK_TYPE]:
@@ -295,6 +303,8 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             discovered: dict[str, BluetoothServiceInfoBleak] = {}
             for info in async_discovered_service_info(self.hass, connectable=True):
                 if not info.name or info.address in current_ids:
+                    continue
+                if not _is_ryse_advertisement(info):
                     continue
                 local = self._local_service_info(info, prefer_pairing=True)
                 if local is None:
