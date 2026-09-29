@@ -19,6 +19,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import RyseConfigEntry
 from .const import MANUFACTURER_NAME
 
+PARALLEL_UPDATES = 1  # one BLE connection at a time
+
 _LOGGER = logging.getLogger(__name__)
 
 
