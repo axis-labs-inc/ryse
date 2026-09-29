@@ -77,13 +77,23 @@ class RyseCoverEntity(CoverEntity):
         if self._device.update_callback == self._update_position:
             self._device.update_callback = None
 
+    def _set_available(self, available: bool, reason: str | None = None) -> None:
+        """Update availability, logging once on each transition."""
+        if available == self._attr_available:
+            return
+        if available:
+            _LOGGER.info("%s is available again", self.entity_id)
+        else:
+            _LOGGER.info("%s became unavailable: %s", self.entity_id, reason)
+        self._attr_available = available
+
     async def _update_position(self, position: int) -> None:
         """Update cover position when receiving notification."""
         if self._device.is_valid_position(position):
             real_position = self._device.get_real_position(position)
             self._current_position = real_position
             self._attr_is_closed = self._device.is_closed(position)
-            self._attr_available = True
+            self._set_available(True)
             _LOGGER.debug(
                 "Updated cover position: raw=%d mapped=%d", position, real_position
             )
@@ -126,21 +136,16 @@ class RyseCoverEntity(CoverEntity):
             if not self._device.client or not self._device.client.is_connected:
                 paired = await self._device.pair()
                 if not paired:
-                    if self._attr_available:
-                        _LOGGER.debug("Failed to pair with device, skipping update")
-                    self._attr_available = False
+                    self._set_available(False, "failed to pair")
                     return
-
-            self._attr_available = True
 
             if paired or self._current_position is None:
                 await self._device.send_get_position()
 
+            self._set_available(True)
+
         except (TimeoutError, OSError, EOFError, BleakError) as err:
-            _LOGGER.warning(
-                "BLE communication error while reading device data: %s", err
-            )
-            self._attr_available = False
+            self._set_available(False, str(err))
 
     @property
     @override
