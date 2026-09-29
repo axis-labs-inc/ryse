@@ -105,11 +105,18 @@ async def test_async_step_user_success(
     cancel()
 
 
+@pytest.mark.parametrize(
+    "unpair_error",
+    [
+        pytest.param(BleakError("unpair error"), id="bleak"),
+        pytest.param(RuntimeError("unpair error"), id="unexpected"),
+    ],
+)
 async def test_async_step_user_success_when_unpair_fails(
-    hass: HomeAssistant, mock_device: MagicMock
+    hass: HomeAssistant, mock_device: MagicMock, unpair_error: Exception
 ) -> None:
     """Test a failed unpair after successful pairing still creates the entry."""
-    mock_device.unpair.side_effect = BleakError("unpair error")
+    mock_device.unpair.side_effect = unpair_error
     cancel, _ = _see_on_local(hass)
     await _abort_bluetooth_flows(hass)
 
@@ -127,12 +134,19 @@ async def test_async_step_user_success_when_unpair_fails(
     cancel()
 
 
+@pytest.mark.parametrize(
+    "unpair_error",
+    [
+        pytest.param(BleakError("unpair error"), id="bleak"),
+        pytest.param(RuntimeError("unpair error"), id="unexpected"),
+    ],
+)
 async def test_async_step_user_cannot_connect_when_unpair_fails(
-    hass: HomeAssistant, mock_device: MagicMock
+    hass: HomeAssistant, mock_device: MagicMock, unpair_error: Exception
 ) -> None:
     """Test a failed unpair after a pairing error still reports cannot_connect."""
     mock_device.pair.side_effect = BleakError("bleak error")
-    mock_device.unpair.side_effect = BleakError("unpair error")
+    mock_device.unpair.side_effect = unpair_error
     cancel, _ = _see_on_local(hass)
     await _abort_bluetooth_flows(hass)
 

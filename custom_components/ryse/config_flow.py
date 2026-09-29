@@ -201,6 +201,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected error during pairing")
             return "unexpected_error"
         finally:
+            # Teardown errors must not override a successful pair or chosen error key.
             await _async_unpair(device)
         return "cannot_connect"
 
