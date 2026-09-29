@@ -9,7 +9,6 @@ from ryseble import is_pairing_mode
 from ryseble.device import RyseBLEDevice
 
 from homeassistant.components.bluetooth import (
-    BaseHaRemoteScanner,
     BluetoothCallbackMatcher,
     BluetoothChange,
     BluetoothScannerDevice,
@@ -20,7 +19,6 @@ from homeassistant.components.bluetooth import (
     async_last_service_info,
     async_rediscover_address,
     async_register_callback,
-    async_scanner_devices_by_address,
 )
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS, EVENT_HOMEASSISTANT_STOP
@@ -28,21 +26,9 @@ from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 
 from . import _async_unpair
 from .const import DOMAIN, MANUFACTURER_ID, SERVICE_UUID
+from .helpers import async_local_scanner_devices
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _local_scanner_devices(
-    hass: HomeAssistant, address: str
-) -> list[BluetoothScannerDevice]:
-    """Return local-adapter scanner devices for *address*, ignoring proxies."""
-    return [
-        scanner_device
-        for scanner_device in async_scanner_devices_by_address(
-            hass, address, connectable=True
-        )
-        if not isinstance(scanner_device.scanner, BaseHaRemoteScanner)
-    ]
 
 
 def _is_ryse_advertisement(info: BluetoothServiceInfoBleak) -> bool:
@@ -95,7 +81,7 @@ def _async_watch_for_local_route(hass: HomeAssistant, address: str) -> None:
         _service_info: BluetoothServiceInfoBleak,
         _change: BluetoothChange,
     ) -> None:
-        if not _local_scanner_devices(hass, address):
+        if not async_local_scanner_devices(hass, address):
             return
         _async_cancel_local_waiter(hass, address)
         async_rediscover_address(hass, address)
@@ -169,7 +155,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             if info not in candidates:
                 candidates.append(info)
 
-        scanner_devices = _local_scanner_devices(self.hass, service_info.address)
+        scanner_devices = async_local_scanner_devices(self.hass, service_info.address)
         if not scanner_devices:
             return None
         local_sources = {device.scanner.source for device in scanner_devices}

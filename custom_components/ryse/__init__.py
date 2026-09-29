@@ -7,18 +7,18 @@ from bleak.backends.device import BLEDevice
 from ryseble.device import RyseBLEDevice
 
 from homeassistant.components.bluetooth import (
-    BaseHaRemoteScanner,
     BluetoothCallbackMatcher,
     BluetoothChange,
     BluetoothScanningMode,
     BluetoothServiceInfoBleak,
     async_register_callback,
-    async_scanner_devices_by_address,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
+
+from .helpers import async_local_scanner_devices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,18 +36,9 @@ async def _async_unpair(device: RyseBLEDevice) -> None:
 
 
 def _async_local_ble_device(hass: HomeAssistant, address: str) -> BLEDevice | None:
-    """Return the BLEDevice seen by a local adapter, ignoring Bluetooth proxies.
-
-    ``ryseble.pair()`` registers a BlueZ Agent1 on the Home Assistant host, which
-    cannot answer pairing for a device reached through an ESPHome/Shelly proxy.
-    """
-    for scanner_device in async_scanner_devices_by_address(
-        hass, address, connectable=True
-    ):
-        if isinstance(scanner_device.scanner, BaseHaRemoteScanner):
-            continue
-        return scanner_device.ble_device
-    return None
+    """Return the BLEDevice seen by a local adapter, ignoring Bluetooth proxies."""
+    devices = async_local_scanner_devices(hass, address)
+    return devices[0].ble_device if devices else None
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool:

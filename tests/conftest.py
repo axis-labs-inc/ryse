@@ -19,8 +19,7 @@ def mock_scanner_devices_by_address() -> Generator[MagicMock]:
     scanner_device.scanner.source = "local"
     scanner_device.ble_device = MagicMock()
     with patch(
-        "homeassistant.components.ryse.config_flow.async_scanner_devices_by_address",
-        create=True,
+        "homeassistant.components.ryse.config_flow.async_local_scanner_devices",
         return_value=[scanner_device],
     ) as mock:
         yield mock
@@ -81,7 +80,7 @@ def mock_ble_device_from_address() -> Generator[MagicMock]:
     scanner_device.scanner = MagicMock()
     scanner_device.ble_device = local_device
     with patch(
-        "homeassistant.components.ryse.async_scanner_devices_by_address",
+        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
         return_value=[scanner_device],
     ) as mock:
         mock.ble_device = local_device

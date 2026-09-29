@@ -39,7 +39,7 @@ async def test_setup_passes_resolved_ble_device(
     scanner_device.scanner = MagicMock()
     scanner_device.ble_device = ble_device
     with patch(
-        "homeassistant.components.ryse.async_scanner_devices_by_address",
+        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
         return_value=[scanner_device],
     ):
         mock_config_entry.add_to_hass(hass)
@@ -56,7 +56,7 @@ async def test_setup_without_ble_device(
 ) -> None:
     """Test setup is retried when the device is not seen by the bluetooth stack."""
     with patch(
-        "homeassistant.components.ryse.async_scanner_devices_by_address",
+        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
         return_value=[],
     ):
         mock_config_entry.add_to_hass(hass)
@@ -113,7 +113,10 @@ async def test_setup_retries_when_unpair_fails(
     pair_side_effect: bool | BleakError,
 ) -> None:
     """Test setup is retried even if releasing the connection after a failed pair raises."""
-    mock_device.pair.side_effect = pair_side_effect
+    if pair_side_effect is False:
+        mock_device.pair.return_value = False
+    else:
+        mock_device.pair.side_effect = pair_side_effect
     mock_device.unpair.side_effect = BleakError("unpair err")
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
@@ -138,7 +141,7 @@ async def test_setup_uses_local_adapter_not_proxy(
     local_scanner_device.ble_device = local_device
 
     with patch(
-        "homeassistant.components.ryse.async_scanner_devices_by_address",
+        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
         return_value=[proxy_scanner_device, local_scanner_device],
     ):
         mock_config_entry.add_to_hass(hass)
@@ -191,7 +194,7 @@ async def test_ble_device_callback_keeps_local_route(
     proxy_scanner_device.scanner = MagicMock(spec=BaseHaRemoteScanner)
     proxy_scanner_device.ble_device = MagicMock()
     with patch(
-        "homeassistant.components.ryse.async_scanner_devices_by_address",
+        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
         return_value=[proxy_scanner_device],
     ):
         update_callback(proxy_info, MagicMock())
