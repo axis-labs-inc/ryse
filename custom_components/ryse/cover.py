@@ -73,7 +73,11 @@ class RyseCoverEntity(CoverEntity):
                 _LOGGER.debug("Could not request initial cover position: %s", err)
 
     def _clear_callback(self) -> None:
-        """Remove the notification callback so ryseble will not await it."""
+        """Restore the constructor default so ryseble will not await this entity.
+
+        Assign ``None`` rather than deleting the attribute: the library object
+        is constructed with ``update_callback = None``.
+        """
         if self._device.update_callback == self._update_position:
             self._device.update_callback = None
 

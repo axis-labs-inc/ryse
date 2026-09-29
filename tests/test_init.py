@@ -38,6 +38,21 @@ async def test_setup_and_unload(
     mock_device.unpair.assert_awaited_once()
 
 
+async def test_unload_succeeds_when_unpair_fails(
+    hass: HomeAssistant,
+    mock_device: MagicMock,
+    setup_integration: MockConfigEntry,
+) -> None:
+    """Test a disconnect error during unload does not fail the config entry."""
+    mock_device.unpair.side_effect = BleakError("already gone")
+
+    assert await hass.config_entries.async_unload(setup_integration.entry_id)
+    await hass.async_block_till_done()
+
+    assert setup_integration.state is ConfigEntryState.NOT_LOADED
+    mock_device.unpair.assert_awaited_once()
+
+
 async def test_setup_passes_resolved_ble_device(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,

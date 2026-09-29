@@ -1,5 +1,6 @@
 """The RYSE integration."""
 
+from functools import partial
 import logging
 
 from bleak import BleakError
@@ -63,19 +64,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
 
     device = RyseBLEDevice(ble_device)
     try:
-        if not await device.pair():
-            await _async_unpair(device)
-            raise ConfigEntryNotReady(
-                f"Could not connect to RYSE device with address {address}"
-            )
+        paired = await device.pair()
     except (TimeoutError, OSError, EOFError, BleakError) as err:
         await _async_unpair(device)
         raise ConfigEntryNotReady(
             f"Could not connect to RYSE device with address {address}"
         ) from err
+    if not paired:
+        await _async_unpair(device)
+        raise ConfigEntryNotReady(
+            f"Could not connect to RYSE device with address {address}"
+        )
 
     entry.runtime_data = device
-    entry.async_on_unload(device.unpair)
+    # Wrap disconnect so a teardown error cannot replace ConfigEntryNotReady
+    # when Home Assistant runs on_unload after a failed setup.
+    entry.async_on_unload(partial(_async_unpair, device))
 
     missing_local_route = False
 
