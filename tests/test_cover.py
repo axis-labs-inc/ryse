@@ -5,6 +5,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from bleak import BleakError
+from bleak.backends.device import BLEDevice
 from freezegun.api import FrozenDateTimeFactory
 import pytest
 
@@ -110,7 +111,7 @@ async def test_cover_available_after_setup(
 async def test_cover_requests_position_when_already_connected(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_ble_device_from_address: MagicMock,
+    local_ryse_scanner: BLEDevice,
     mock_device: MagicMock,
 ) -> None:
     """Test a connected device is asked for position as soon as the cover is added."""

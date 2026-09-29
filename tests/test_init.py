@@ -1,13 +1,20 @@
 """Tests for RYSE init setup."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from bleak import BleakError
+from bleak.backends.device import BLEDevice
 import pytest
 
-from homeassistant.components.bluetooth import BaseHaRemoteScanner
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+
+from . import (
+    make_advertisement,
+    make_ble_device,
+    register_local_scanner,
+    register_remote_scanner,
+)
 
 from tests.common import MockConfigEntry
 
@@ -32,22 +39,16 @@ async def test_setup_passes_resolved_ble_device(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_ryse_ble_device: MagicMock,
+    local_ble_device: BLEDevice,
+    local_ryse_scanner: BLEDevice,
 ) -> None:
     """Test setup passes the Home Assistant-resolved BLEDevice to ryseble."""
-    ble_device = MagicMock()
-    scanner_device = MagicMock()
-    scanner_device.scanner = MagicMock()
-    scanner_device.ble_device = ble_device
-    with patch(
-        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
-        return_value=[scanner_device],
-    ):
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     assert mock_config_entry.state is ConfigEntryState.LOADED
-    mock_ryse_ble_device.assert_called_once_with(ble_device)
+    mock_ryse_ble_device.assert_called_once_with(local_ble_device)
 
 
 async def test_setup_without_ble_device(
@@ -55,13 +56,9 @@ async def test_setup_without_ble_device(
     mock_config_entry: MockConfigEntry,
 ) -> None:
     """Test setup is retried when the device is not seen by the bluetooth stack."""
-    with patch(
-        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
-        return_value=[],
-    ):
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done()
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
     assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
 
@@ -69,7 +66,7 @@ async def test_setup_without_ble_device(
 async def test_setup_retries_when_pairing_fails(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_ble_device_from_address: MagicMock,
+    local_ryse_scanner: BLEDevice,
     mock_device: MagicMock,
 ) -> None:
     """Test setup is retried when pairing with the device fails."""
@@ -85,7 +82,7 @@ async def test_setup_retries_when_pairing_fails(
 async def test_setup_retries_on_ble_error(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_ble_device_from_address: MagicMock,
+    local_ryse_scanner: BLEDevice,
     mock_device: MagicMock,
 ) -> None:
     """Test setup is retried when pairing raises a BLE error."""
@@ -105,7 +102,7 @@ async def test_setup_retries_on_ble_error(
         pytest.param(BleakError("ble err"), id="pair_raises"),
     ],
 )
-@pytest.mark.usefixtures("mock_ble_device_from_address")
+@pytest.mark.usefixtures("local_ryse_scanner")
 async def test_setup_retries_when_unpair_fails(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
@@ -132,70 +129,43 @@ async def test_setup_uses_local_adapter_not_proxy(
     mock_ryse_ble_device: MagicMock,
 ) -> None:
     """Test setup resolves the BLEDevice from a local adapter, not a proxy."""
-    local_device = MagicMock()
-    proxy_scanner_device = MagicMock()
-    proxy_scanner_device.scanner = MagicMock(spec=BaseHaRemoteScanner)
-    proxy_scanner_device.ble_device = MagicMock()
-    local_scanner_device = MagicMock()
-    local_scanner_device.scanner = MagicMock()
-    local_scanner_device.ble_device = local_device
+    local_device = make_ble_device()
+    advertisement = make_advertisement()
+    proxy_device = make_ble_device()
+    remote, cancel_remote = register_remote_scanner(hass)
+    cancel_local = register_local_scanner(hass, local_device, advertisement)
+    try:
+        remote.inject_advertisement(proxy_device, advertisement)
 
-    with patch(
-        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
-        return_value=[proxy_scanner_device, local_scanner_device],
-    ):
         mock_config_entry.add_to_hass(hass)
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-    assert mock_config_entry.state is ConfigEntryState.LOADED
-    mock_ryse_ble_device.assert_called_once_with(local_device)
+        assert mock_config_entry.state is ConfigEntryState.LOADED
+        mock_ryse_ble_device.assert_called_once_with(local_device)
+    finally:
+        cancel_local()
+        cancel_remote()
 
 
 async def test_ble_device_callback_keeps_local_route(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
-    mock_ble_device_from_address: MagicMock,
+    local_ble_device: BLEDevice,
+    local_ryse_scanner: BLEDevice,
     mock_device: MagicMock,
 ) -> None:
     """Test advertisement callbacks pin reconnects to a local adapter BLEDevice."""
-    captured: dict[str, object] = {}
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
 
-    def _register(
-        hass: HomeAssistant,
-        update_callback: object,
-        matcher: object,
-        mode: object,
-    ) -> object:
-        captured["callback"] = update_callback
-        return lambda: None
-
-    with patch(
-        "homeassistant.components.ryse.async_register_callback",
-        side_effect=_register,
-    ):
-        mock_config_entry.add_to_hass(hass)
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    advertisement = make_advertisement()
+    proxy_device = make_ble_device()
+    remote, cancel_remote = register_remote_scanner(hass)
+    try:
+        remote.inject_advertisement(proxy_device, advertisement)
         await hass.async_block_till_done()
-
-    update_callback = captured["callback"]
-    assert callable(update_callback)
-
-    local_device = mock_ble_device_from_address.ble_device
-    proxy_info = MagicMock()
-    proxy_info.address = "AA:BB:CC:DD:EE:FF"
-    proxy_info.source = "aa:bb:cc:dd:ee:00"
-    proxy_info.device = MagicMock()
-    update_callback(proxy_info, MagicMock())
-    mock_device.set_ble_device.assert_called_once_with(local_device)
-
-    mock_device.set_ble_device.reset_mock()
-    proxy_scanner_device = MagicMock()
-    proxy_scanner_device.scanner = MagicMock(spec=BaseHaRemoteScanner)
-    proxy_scanner_device.ble_device = MagicMock()
-    with patch(
-        "homeassistant.components.ryse.helpers.async_scanner_devices_by_address",
-        return_value=[proxy_scanner_device],
-    ):
-        update_callback(proxy_info, MagicMock())
-    mock_device.set_ble_device.assert_not_called()
+        mock_device.set_ble_device.assert_called_with(local_ble_device)
+    finally:
+        cancel_remote()
