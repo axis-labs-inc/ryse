@@ -26,7 +26,7 @@ from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 
 from . import _async_unpair
 from .const import DATA_LOCAL_WAITERS, DOMAIN, MANUFACTURER_ID, SERVICE_UUID
-from .helpers import async_local_scanner_devices
+from .helpers import async_cancel_local_waiter, async_local_scanner_devices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,8 +34,7 @@ _LOGGER = logging.getLogger(__name__)
 def _is_ryse_advertisement(info: BluetoothServiceInfoBleak) -> bool:
     """Return True if *info* matches a RYSE shade."""
     return (
-        MANUFACTURER_ID in info.manufacturer_data
-        or SERVICE_UUID in info.service_uuids
+        MANUFACTURER_ID in info.manufacturer_data or SERVICE_UUID in info.service_uuids
     )
 
 
@@ -57,16 +56,6 @@ def _async_local_waiters(hass: HomeAssistant) -> dict[str, CALLBACK_TYPE]:
 
 
 @callback
-def _async_cancel_local_waiter(hass: HomeAssistant, address: str) -> None:
-    """Stop watching *address* for a local adapter."""
-    waiters = hass.data.get(DATA_LOCAL_WAITERS)
-    if not waiters:
-        return
-    if unsub := waiters.pop(address, None):
-        unsub()
-
-
-@callback
 def _async_watch_for_local_route(hass: HomeAssistant, address: str) -> None:
     """Rediscover *address* once a local adapter sees it.
 
@@ -74,7 +63,7 @@ def _async_watch_for_local_route(hass: HomeAssistant, address: str) -> None:
     aborting flows. Rediscovery runs only after a local scanner sees the
     address.
     """
-    _async_cancel_local_waiter(hass, address)
+    async_cancel_local_waiter(hass, address)
 
     @callback
     def _async_on_advertisement(
@@ -83,7 +72,7 @@ def _async_watch_for_local_route(hass: HomeAssistant, address: str) -> None:
     ) -> None:
         if not async_local_scanner_devices(hass, address):
             return
-        _async_cancel_local_waiter(hass, address)
+        async_cancel_local_waiter(hass, address)
         async_rediscover_address(hass, address)
 
     _async_local_waiters(hass)[address] = async_register_callback(
@@ -113,25 +102,27 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             return service_info
         return latest
 
-    def _with_local_device(
+    def _service_info_from_scanner(
         self,
-        service_info: BluetoothServiceInfoBleak,
         scanner_device: BluetoothScannerDevice,
+        *,
+        time: float,
     ) -> BluetoothServiceInfoBleak:
-        """Copy *service_info* onto the local adapter's BLEDevice."""
+        """Build service info from a local scanner's own advertisement."""
+        advertisement = scanner_device.advertisement
         return BluetoothServiceInfoBleak(
-            name=service_info.name,
-            address=service_info.address,
-            rssi=service_info.rssi,
-            manufacturer_data=service_info.manufacturer_data,
-            service_data=service_info.service_data,
-            service_uuids=service_info.service_uuids,
+            name=advertisement.local_name or scanner_device.ble_device.name or "",
+            address=scanner_device.ble_device.address,
+            rssi=advertisement.rssi,
+            manufacturer_data=advertisement.manufacturer_data,
+            service_data=advertisement.service_data,
+            service_uuids=advertisement.service_uuids,
             source=scanner_device.scanner.source,
             device=scanner_device.ble_device,
-            advertisement=service_info.advertisement,
-            time=service_info.time,
+            advertisement=advertisement,
+            time=time,
             connectable=True,
-            tx_power=service_info.tx_power,
+            tx_power=advertisement.tx_power,
         )
 
     def _local_service_info(
@@ -144,32 +135,22 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
 
         ``async_last_service_info`` / ``async_discovered_service_info`` expose
         only the Bluetooth manager's selected route. A stronger proxy can win
-        that selection even when a local adapter also sees the shade. Check
-        every scanner before treating the device as proxy-only.
-
-        Local adapters set ``source`` to the adapter MAC, not ``SOURCE_LOCAL``.
+        that selection even when a local adapter also sees the shade. Use each
+        local scanner's own advertisement so an idle proxy packet cannot hide
+        a current local PAIR flag.
         """
-        latest = self._latest_service_info(service_info)
-        candidates: list[BluetoothServiceInfoBleak] = []
-        for info in (latest, service_info):
-            if info not in candidates:
-                candidates.append(info)
-
         scanner_devices = async_local_scanner_devices(self.hass, service_info.address)
         if not scanner_devices:
             return None
+
+        latest = self._latest_service_info(service_info)
         local_sources = {device.scanner.source for device in scanner_devices}
-        local = [info for info in candidates if info.source in local_sources]
-        if not local:
-            pairing_info = next(
-                (
-                    info
-                    for info in candidates
-                    if is_pairing_mode(info.manufacturer_data)
-                ),
-                candidates[0],
-            )
-            local = [self._with_local_device(pairing_info, scanner_devices[0])]
+        local = [
+            self._service_info_from_scanner(device, time=latest.time)
+            for device in scanner_devices
+        ]
+        if latest.source in local_sources and latest not in local:
+            local.append(latest)
         if prefer_pairing:
             for info in local:
                 if is_pairing_mode(info.manufacturer_data):
@@ -179,22 +160,21 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _async_pair(self, service_info: BluetoothServiceInfoBleak) -> str | None:
         """Bond with the device via Bleak, then release the connection.
 
-        Returns an error key, or None on success. Pairing is refused unless the
-        latest advertisement still has the PAIR flag set and came from a local
-        adapter; ryseble's BlueZ agent cannot pair through a Bluetooth proxy.
+        Returns an error key, or None on success. Pairing is refused unless a
+        local scanner advertisement still has the PAIR flag set; ryseble's
+        BlueZ agent cannot pair through a Bluetooth proxy.
         """
-        latest = self._latest_service_info(service_info)
-        local = self._local_service_info(latest)
+        local = self._local_service_info(service_info, prefer_pairing=True)
         if local is None:
             return "not_local_source"
-        if not is_pairing_mode(latest.manufacturer_data):
+        if not is_pairing_mode(local.manufacturer_data):
             return "not_in_pairing_mode"
 
         device = RyseBLEDevice(local.device)
         try:
             if await device.pair():
                 return None
-        except (TimeoutError, OSError, EOFError, BleakError):
+        except TimeoutError, OSError, EOFError, BleakError:
             _LOGGER.error("Connection error during pairing")
             return "cannot_connect"
         except Exception:
@@ -214,7 +194,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
         if self.hass.config_entries.async_entry_for_domain_unique_id(
             DOMAIN, discovery_info.address
         ):
-            _async_cancel_local_waiter(self.hass, discovery_info.address)
+            async_cancel_local_waiter(self.hass, discovery_info.address)
         self._abort_if_unique_id_configured()
 
         latest = self._local_service_info(discovery_info, prefer_pairing=True)
@@ -224,7 +204,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(None)
             _async_watch_for_local_route(self.hass, discovery_info.address)
             return self.async_abort(reason="not_local_source")
-        _async_cancel_local_waiter(self.hass, discovery_info.address)
+        async_cancel_local_waiter(self.hass, discovery_info.address)
         if not is_pairing_mode(latest.manufacturer_data):
             # Idle shades still match the manifest; drop them here so they are
             # not shown as unusable discoveries. Clear matcher history so a
@@ -238,11 +218,9 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
         return await self.async_step_bluetooth_confirm()
 
     @override
-    async def async_step_ignore(
-        self, user_input: dict[str, Any]
-    ) -> ConfigFlowResult:
+    async def async_step_ignore(self, user_input: dict[str, Any]) -> ConfigFlowResult:
         """Ignore a discovered shade and drop any leftover local-adapter waiter."""
-        _async_cancel_local_waiter(self.hass, user_input["unique_id"])
+        async_cancel_local_waiter(self.hass, user_input["unique_id"])
         return await super().async_step_ignore(user_input)
 
     async def async_step_bluetooth_confirm(
@@ -259,7 +237,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             if error := await self._async_pair(discovery_info):
                 errors["base"] = error
             else:
-                _async_cancel_local_waiter(self.hass, discovery_info.address)
+                async_cancel_local_waiter(self.hass, discovery_info.address)
                 return self.async_create_entry(
                     title=name,
                     data={},
@@ -291,7 +269,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
             if error := await self._async_pair(service_info):
                 errors["base"] = error
             else:
-                _async_cancel_local_waiter(self.hass, address)
+                async_cancel_local_waiter(self.hass, address)
                 return self.async_create_entry(title=service_info.name, data={})
 
         if user_input is None:
@@ -308,12 +286,7 @@ class RyseBLEDeviceConfigFlow(ConfigFlow, domain=DOMAIN):
                 if not _is_ryse_advertisement(info):
                     continue
                 local = self._local_service_info(info, prefer_pairing=True)
-                if local is None:
-                    continue
-                if not (
-                    is_pairing_mode(local.manufacturer_data)
-                    or is_pairing_mode(info.manufacturer_data)
-                ):
+                if local is None or not is_pairing_mode(local.manufacturer_data):
                     continue
                 discovered[info.address] = local
             self._discovered_devices = discovered

@@ -1,7 +1,7 @@
 """Tests for RYSE init setup."""
 
 import logging
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from bleak import BleakError
 from bleak.backends.device import BLEDevice
@@ -50,6 +50,30 @@ async def test_unload_succeeds_when_unpair_fails(
     await hass.async_block_till_done()
 
     assert setup_integration.state is ConfigEntryState.NOT_LOADED
+    mock_device.unpair.assert_awaited_once()
+
+
+async def test_setup_releases_connection_when_platform_setup_fails(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    local_ryse_scanner: BLEDevice,
+    mock_device: MagicMock,
+) -> None:
+    """Test a failed platform setup still disconnects the paired device.
+
+    Home Assistant does not call async_unload_entry when async_setup_entry
+    raises; only async_on_unload callbacks run.
+    """
+    mock_config_entry.add_to_hass(hass)
+    with patch(
+        "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
+        side_effect=RuntimeError("platform failed"),
+    ):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
+    mock_device.pair.assert_awaited_once()
     mock_device.unpair.assert_awaited_once()
 
 
@@ -113,8 +137,24 @@ async def test_setup_retries_on_ble_error(
     mock_device.unpair.assert_awaited_once()
 
 
+@pytest.mark.usefixtures("local_ryse_scanner")
+async def test_setup_releases_connection_on_unexpected_pair_error(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_device: MagicMock,
+) -> None:
+    """Test an unexpected pairing error still releases the BLE connection."""
+    mock_device.pair.side_effect = RuntimeError("agent failed")
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
+    mock_device.unpair.assert_awaited_once()
+
+
 @pytest.mark.parametrize(
-    "pair_side_effect",
+    "pair_result",
     [
         pytest.param(False, id="pair_returns_false"),
         pytest.param(BleakError("ble err"), id="pair_raises"),
@@ -132,14 +172,11 @@ async def test_setup_retries_when_unpair_fails(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_device: MagicMock,
-    pair_side_effect: bool | BleakError,
+    pair_result: bool | BleakError,
     unpair_side_effect: Exception,
 ) -> None:
     """Test setup is retried even if releasing the connection after a failed pair raises."""
-    if pair_side_effect is False:
-        mock_device.pair.return_value = False
-    else:
-        mock_device.pair.side_effect = pair_side_effect
+    mock_device.pair.side_effect = [pair_result]
     mock_device.unpair.side_effect = unpair_side_effect
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
@@ -234,17 +271,13 @@ async def test_ble_device_callback_logs_lost_and_restored_local_route(
             assert caplog.text.count(lost) == 1
             mock_device.set_ble_device.assert_not_called()
 
-            cancel_local = register_local_scanner(
-                hass, local_ble_device, advertisement
-            )
+            cancel_local = register_local_scanner(hass, local_ble_device, advertisement)
             remote.inject_advertisement(
                 local_ble_device,
                 make_advertisement(service_data={SERVICE_UUID: b"\x03"}),
             )
             await hass.async_block_till_done()
-            restored = (
-                f"{DEVICE_ADDRESS} is visible on a local Bluetooth adapter again"
-            )
+            restored = f"{DEVICE_ADDRESS} is visible on a local Bluetooth adapter again"
             assert caplog.text.count(restored) == 1
             mock_device.set_ble_device.assert_called_with(local_ble_device)
     finally:

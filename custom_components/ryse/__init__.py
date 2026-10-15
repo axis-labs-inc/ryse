@@ -19,7 +19,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .helpers import async_local_scanner_devices
+from .helpers import async_cancel_local_waiter, async_local_scanner_devices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,9 +51,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
     address = entry.unique_id
     assert address is not None
 
-    from .config_flow import _async_cancel_local_waiter
-
-    _async_cancel_local_waiter(hass, address)
+    async_cancel_local_waiter(hass, address)
 
     ble_device = _async_local_ble_device(hass, address)
     if not ble_device:
@@ -63,18 +61,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: RyseConfigEntry) -> bool
         )
 
     device = RyseBLEDevice(ble_device)
+    connect_error = f"Could not connect to RYSE device with address {address}"
+    paired = False
     try:
         paired = await device.pair()
+        if not paired:
+            raise ConfigEntryNotReady(connect_error)
     except (TimeoutError, OSError, EOFError, BleakError) as err:
-        await _async_unpair(device)
-        raise ConfigEntryNotReady(
-            f"Could not connect to RYSE device with address {address}"
-        ) from err
-    if not paired:
-        await _async_unpair(device)
-        raise ConfigEntryNotReady(
-            f"Could not connect to RYSE device with address {address}"
-        )
+        raise ConfigEntryNotReady(connect_error) from err
+    finally:
+        if not paired:
+            await _async_unpair(device)
 
     entry.runtime_data = device
     # Wrap disconnect so a teardown error cannot replace ConfigEntryNotReady

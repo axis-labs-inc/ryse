@@ -80,8 +80,7 @@ def register_local_scanner(
         ) -> dict[str, tuple[BLEDevice, AdvertisementData]]:
             return {device.address: (device, advertisement)}
 
-    scanner = LocalScanner(source, "hci0")
-    scanner.connectable = True
+    scanner = LocalScanner(source, "hci0", connectable=True)
     return bluetooth.async_register_scanner(hass, scanner, connection_slots=5)
 
 
